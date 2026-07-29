@@ -14,7 +14,7 @@ class EDAFeature(BaseComponent):
     def __init__(
         self,
         dataset,
-        name,
+        feature_name,
         config=None,
         logger=None,
     ):
@@ -25,9 +25,10 @@ class EDAFeature(BaseComponent):
         )
 
         self.dataset = dataset
-        self.name = name
 
-        self.series = dataset.df[name]
+        self.feature_name = feature_name
+
+        self.series = dataset.df[feature_name]
 
     @property
     def metadata(self):
@@ -36,7 +37,7 @@ class EDAFeature(BaseComponent):
             self.dataset.metadata
             .to_dataframe()
             .query(
-                "name == @self.name"
+                "name == @self.feature_name"
             )
         )
 
@@ -44,12 +45,12 @@ class EDAFeature(BaseComponent):
 
         return single_feature_summary(
             self.series,
-            self.name,
+            self.feature_name,
         )
 
     def statistics(self):
 
         return single_feature_statistics(
             self.series,
-            self.name,
+            self.feature_name,
         )
