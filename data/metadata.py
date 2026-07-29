@@ -13,49 +13,42 @@ class Metadata:
 
     def to_dataframe(self):
 
-        return pd.DataFrame([vars(f) for f in self.features])
+        return pd.DataFrame(
+            [vars(feature) for feature in self.features]
+        )
 
     @property
     def continuous(self):
 
         return [
-            f.name
-            for f in self.features
-            if f.variable_type == "continuous"
+            feature.name
+            for feature in self.features
+            if feature.variable_type == "continuous"
         ]
 
     @property
     def categorical(self):
 
         return [
-            f.name
-            for f in self.features
-            if f.variable_type == "categorical"
+            feature.name
+            for feature in self.features
+            if feature.variable_type == "categorical"
         ]
 
     @property
     def binary(self):
 
         return [
-            f.name
-            for f in self.features
-            if f.variable_type == "binary"
+            feature.name
+            for feature in self.features
+            if feature.variable_type == "binary"
         ]
 
     @property
     def dates(self):
 
         return [
-            f.name
-            for f in self.features
-            if f.variable_type == "datetime"
-        ]
-
-    @property
-    def ids(self):
-
-        return [
-            f.name
-            for f in self.features
-            if f.role == "id"
+            feature.name
+            for feature in self.features
+            if feature.variable_type == "datetime"
         ]
