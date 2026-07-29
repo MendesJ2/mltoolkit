@@ -8,18 +8,24 @@ from .metadata import Metadata
 
 class Dataset(BaseComponent):
 
-    def __init__(self,
-                 dataframe,
-                 config=None,
-                 logger=None):
+    def __init__(
+        self,
+        dataframe: pd.DataFrame,
+        config=None,
+        logger=None,
+    ):
 
-        super().__init__(config, logger)
+        super().__init__(config=config, logger=logger)
 
         self.df = dataframe.copy()
 
         self.metadata = Metadata()
 
         self._build_metadata()
+
+    ####################################################################
+    # Public Properties
+    ####################################################################
 
     @property
     def shape(self):
@@ -51,6 +57,10 @@ class Dataset(BaseComponent):
 
         return self.metadata.dates
 
+    ####################################################################
+    # Public Methods
+    ####################################################################
+
     def summary(self):
 
         print(f"Rows: {self.df.shape[0]:,}")
@@ -65,90 +75,83 @@ class Dataset(BaseComponent):
 
         print(f"Datetime: {len(self.dates)}")
 
-    ###################################
-    # PRIVATE METHODS
-    ###################################
+    ####################################################################
+    # Private Methods
+    ####################################################################
 
     def _build_metadata(self):
 
-        for col in self.df.columns:
+        for column in self.df.columns:
 
-            s = self.df[col]
-
-            n_unique = s.nunique(dropna=False)
-
-            missing = s.isna().mean()
-
-            is_constant = n_unique == 1
-
-            is_quasi_constant = (
-                s.value_counts(normalize=True,
-                               dropna=False)
-                .max()
-                > 0.99
-            )
-
-            role = self._infer_role(col)
-
-            variable_type = self._infer_variable_type(s)
+            series = self.df[column]
 
             feature = Feature(
 
-                name=col,
+                name=column,
 
-                dtype=str(s.dtype),
+                dtype=str(series.dtype),
 
-                role=role,
+                role=self._infer_role(column),
 
-                variable_type=variable_type,
+                variable_type=self._infer_variable_type(series),
 
-                n_unique=n_unique,
+                n_unique=series.nunique(dropna=False),
 
-                missing_pct=missing,
+                missing_pct=series.isna().mean(),
 
-                is_constant=is_constant,
+                is_constant=series.nunique(dropna=False) == 1,
 
-                is_quasi_constant=is_quasi_constant,
-
+                is_quasi_constant=(
+                    series.value_counts(
+                        normalize=True,
+                        dropna=False
+                    ).max()
+                    > 0.99
+                ),
             )
 
             self.metadata.add(feature)
 
     def _infer_role(self, column):
 
-        if column == self.config.target:
-    
+        if (
+            self.config is not None
+            and column == self.config.target
+        ):
             return "target"
-    
-        if column == self.config.date_column:
-    
+
+        if (
+            self.config is not None
+            and column == self.config.date_column
+        ):
             return "date"
-    
-        if column.lower().endswith("id"):
-    
+
+        if (
+            self.config is not None
+            and column in self.config.id_columns
+        ):
             return "id"
-    
+
         return "feature"
 
-
     def _infer_variable_type(self, series):
-    
+
         if pd.api.types.is_datetime64_any_dtype(series):
-    
+
             return "datetime"
-    
-        nunique = series.nunique()
-    
-        if nunique == 2:
-    
+
+        unique = series.nunique()
+
+        if unique == 2:
+
             return "binary"
-    
+
         if pd.api.types.is_numeric_dtype(series):
-    
-            if nunique < 10:
-    
+
+            if unique < 10:
+
                 return "categorical"
-    
+
             return "continuous"
-    
+
         return "categorical"
