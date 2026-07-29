@@ -62,7 +62,7 @@ class EDAAnalyzer(BaseComponent):
 
         return EDAFeature(
             dataset=self.dataset,
-            name=name,
+            feature_name=name,
             config=self.config,
             logger=self.logger,
         )
