@@ -64,3 +64,91 @@ class Dataset(BaseComponent):
         print(f"Binary: {len(self.binary)}")
 
         print(f"Datetime: {len(self.dates)}")
+
+    ###################################
+    # PRIVATE METHODS
+    ###################################
+
+    def _build_metadata(self):
+
+        for col in self.df.columns:
+
+            s = self.df[col]
+
+            n_unique = s.nunique(dropna=False)
+
+            missing = s.isna().mean()
+
+            is_constant = n_unique == 1
+
+            is_quasi_constant = (
+                s.value_counts(normalize=True,
+                               dropna=False)
+                .max()
+                > 0.99
+            )
+
+            role = self._infer_role(col)
+
+            variable_type = self._infer_variable_type(s)
+
+            feature = Feature(
+
+                name=col,
+
+                dtype=str(s.dtype),
+
+                role=role,
+
+                variable_type=variable_type,
+
+                n_unique=n_unique,
+
+                missing_pct=missing,
+
+                is_constant=is_constant,
+
+                is_quasi_constant=is_quasi_constant,
+
+            )
+
+            self.metadata.add(feature)
+
+    def _infer_role(self, column):
+
+        if column == self.config.target:
+    
+            return "target"
+    
+        if column == self.config.date_column:
+    
+            return "date"
+    
+        if column.lower().endswith("id"):
+    
+            return "id"
+    
+        return "feature"
+
+
+    def _infer_variable_type(self, series):
+    
+        if pd.api.types.is_datetime64_any_dtype(series):
+    
+            return "datetime"
+    
+        nunique = series.nunique()
+    
+        if nunique == 2:
+    
+            return "binary"
+    
+        if pd.api.types.is_numeric_dtype(series):
+    
+            if nunique < 10:
+    
+                return "categorical"
+    
+            return "continuous"
+    
+        return "categorical"
