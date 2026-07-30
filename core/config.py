@@ -15,6 +15,10 @@ class Config:
 
     id_columns: list[str] = field(default_factory=list)
 
+    feature_columns: list[str] | None = None
+    
+    ignore_columns: list[str] = field(default_factory=list)
+    
     variable_types: dict[str, str] = field(
         default_factory=dict
     )
