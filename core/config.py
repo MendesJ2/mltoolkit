@@ -11,7 +11,13 @@ class Config:
 
     date_column: str | None = None
 
+    source_column: str | None = None
+
     id_columns: list[str] = field(default_factory=list)
+
+    variable_types: dict[str, str] = field(
+        default_factory=dict
+    )
 
     random_state: int = 42
 
