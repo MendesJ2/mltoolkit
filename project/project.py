@@ -1,6 +1,7 @@
 from mltoolkit.core.base import BaseComponent
 from mltoolkit.data.dataset import Dataset
-
+from projects.insurance.features import build_features
+from mltoolkit.features import FeatureTransformer
 
 class BaseProject(BaseComponent):
 
@@ -26,6 +27,23 @@ class BaseProject(BaseComponent):
         )
 
         self.info("Dataset loaded.")
+
+        features = build_features()
+    
+        transformer = FeatureTransformer(
+            features
+        )
+        
+        
+        df_features = transformer.transform(
+            dataset.df
+        )
+        
+        
+        dataset.add_features(
+            df_features,
+            features.names()
+        )
 
     def summary(self):
 
