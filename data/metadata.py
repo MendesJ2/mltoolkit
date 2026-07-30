@@ -96,6 +96,15 @@ class Metadata:
             if f.role == "feature"
         ]
 
+    @property
+    def ignored(self):
+    
+        return [
+            f.name
+            for f in self.features
+            if f.role == "ignored"
+        ]
+
     # =====================================================
     # Export
     # =====================================================
