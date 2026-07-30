@@ -5,6 +5,12 @@ from .summarizers import (
     single_feature_statistics,
 )
 
+from .plots import (
+    plot_continuous,
+    plot_categorical,
+    plot_binary,
+)
+
 
 class EDAFeature(BaseComponent):
     """
@@ -53,4 +59,41 @@ class EDAFeature(BaseComponent):
         return single_feature_statistics(
             self.series,
             self.feature_name,
+        )
+
+    def plot(self):
+    
+        variable_type = (
+            self.dataset
+            .feature(self.feature_name)
+            .variable_type
+        )
+    
+    
+        if variable_type == "continuous":
+    
+            return plot_continuous(
+                self.series,
+                self.feature_name
+            )
+    
+    
+        if variable_type == "binary":
+    
+            return plot_binary(
+                self.series,
+                self.feature_name
+            )
+    
+    
+        if variable_type == "categorical":
+    
+            return plot_categorical(
+                self.series,
+                self.feature_name
+            )
+    
+    
+        raise ValueError(
+            f"No plot implemented for {variable_type}"
         )
