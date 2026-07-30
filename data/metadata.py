@@ -1,21 +1,46 @@
 import pandas as pd
 
+from .feature import Feature
+
 
 class Metadata:
+    """
+    Holds metadata for every feature in the dataset.
+    """
 
     def __init__(self):
 
-        self.features = []
+        self._features = {}
 
-    def add(self, feature):
+    # =====================================================
+    # Basic Operations
+    # =====================================================
 
-        self.features.append(feature)
+    def add(self, feature: Feature):
 
-    def to_dataframe(self):
+        self._features[feature.name] = feature
 
-        return pd.DataFrame(
-            [vars(feature) for feature in self.features]
-        )
+    def get(self, name):
+
+        return self._features[name]
+
+    def exists(self, name):
+
+        return name in self._features
+
+    # =====================================================
+    # Properties
+    # =====================================================
+
+    @property
+    def features(self):
+
+        return list(self._features.values())
+
+    @property
+    def names(self):
+
+        return list(self._features.keys())
 
     @property
     def continuous(self):
@@ -45,10 +70,29 @@ class Metadata:
         ]
 
     @property
-    def dates(self):
+    def ordinal(self):
+
+        return [
+            feature.name
+            for feature in self.features
+            if feature.variable_type == "ordinal"
+        ]
+
+    @property
+    def datetime(self):
 
         return [
             feature.name
             for feature in self.features
             if feature.variable_type == "datetime"
         ]
+
+    # =====================================================
+    # Export
+    # =====================================================
+
+    def to_dataframe(self):
+
+        return pd.DataFrame(
+            [vars(feature) for feature in self.features]
+        )
