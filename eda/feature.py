@@ -11,6 +11,7 @@ from .plots import (
     plot_binary,
 )
 
+from .target import target_summary
 
 class EDAFeature(BaseComponent):
     """
@@ -97,3 +98,22 @@ class EDAFeature(BaseComponent):
         raise ValueError(
             f"No plot implemented for {variable_type}"
         )
+
+        def target(self):
+        
+            target = (
+                self.dataset
+                .config
+                .target
+            )
+        
+        
+            return target_summary(
+        
+                self.dataset.df,
+        
+                self.feature_name,
+        
+                target
+        
+            )
