@@ -15,7 +15,10 @@ class Dataset(BaseComponent):
         logger=None,
     ):
 
-        super().__init__(config=config, logger=logger)
+        super().__init__(
+            config=config,
+            logger=logger,
+        )
 
         self.df = dataframe.copy()
 
@@ -23,9 +26,9 @@ class Dataset(BaseComponent):
 
         self._build_metadata()
 
-    ####################################################################
+    # =====================================================
     # Public Properties
-    ####################################################################
+    # =====================================================
 
     @property
     def shape(self):
@@ -53,31 +56,51 @@ class Dataset(BaseComponent):
         return self.metadata.binary
 
     @property
+    def ordinal(self):
+
+        return self.metadata.ordinal
+
+    @property
     def dates(self):
 
-        return self.metadata.dates
+        return self.metadata.datetime
 
-    ####################################################################
+    # =====================================================
     # Public Methods
-    ####################################################################
+    # =====================================================
 
     def summary(self):
 
-        print(f"Rows: {self.df.shape[0]:,}")
+        return pd.DataFrame(
+            {
+                "Metric": [
+                    "Rows",
+                    "Columns",
+                    "Continuous",
+                    "Categorical",
+                    "Binary",
+                    "Ordinal",
+                    "Datetime",
+                ],
+                "Value": [
+                    self.df.shape[0],
+                    self.df.shape[1],
+                    len(self.continuous),
+                    len(self.categorical),
+                    len(self.binary),
+                    len(self.ordinal),
+                    len(self.dates),
+                ],
+            }
+        )
 
-        print(f"Columns: {self.df.shape[1]}")
+    def feature(self, name):
 
-        print(f"Continuous: {len(self.continuous)}")
+        return self.metadata.get(name)
 
-        print(f"Categorical: {len(self.categorical)}")
-
-        print(f"Binary: {len(self.binary)}")
-
-        print(f"Datetime: {len(self.dates)}")
-
-    ####################################################################
-    # Private Methods
-    ####################################################################
+    # =====================================================
+    # Metadata
+    # =====================================================
 
     def _build_metadata(self):
 
@@ -93,7 +116,10 @@ class Dataset(BaseComponent):
 
                 role=self._infer_role(column),
 
-                variable_type=self._infer_variable_type(series),
+                variable_type=self._infer_variable_type(
+                    column,
+                    series,
+                ),
 
                 n_unique=series.nunique(dropna=False),
 
@@ -112,6 +138,10 @@ class Dataset(BaseComponent):
 
             self.metadata.add(feature)
 
+    # =====================================================
+    # Infer role
+    # =====================================================
+
     def _infer_role(self, column):
 
         if (
@@ -128,13 +158,41 @@ class Dataset(BaseComponent):
 
         if (
             self.config is not None
+            and column == self.config.source_column
+        ):
+            return "source"
+
+        if (
+            self.config is not None
             and column in self.config.id_columns
         ):
             return "id"
 
         return "feature"
 
-    def _infer_variable_type(self, series):
+    # =====================================================
+    # Infer variable type
+    # =====================================================
+
+    def _infer_variable_type(
+        self,
+        column,
+        series,
+    ):
+
+        # ----------------------------------------------
+        # Manual override
+        # ----------------------------------------------
+
+        if (
+            self.config is not None
+            and column in self.config.variable_types
+        ):
+            return self.config.variable_types[column]
+
+        # ----------------------------------------------
+        # Automatic inference
+        # ----------------------------------------------
 
         if pd.api.types.is_datetime64_any_dtype(series):
 
