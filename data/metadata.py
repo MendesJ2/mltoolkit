@@ -87,6 +87,15 @@ class Metadata:
             if feature.variable_type == "datetime"
         ]
 
+    @property
+    def eligible(self):
+    
+        return [
+            f.name
+            for f in self.features
+            if f.role == "feature"
+        ]
+
     # =====================================================
     # Export
     # =====================================================
