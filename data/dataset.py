@@ -65,6 +65,21 @@ class Dataset(BaseComponent):
 
         return self.metadata.datetime
 
+    @property
+    def feature_columns(self):
+
+        return self.metadata.eligible
+
+    @property
+    def ignored_columns(self):
+
+        return self.metadata.ignored
+
+    @property
+    def modeling_dataframe(self):
+
+        return self.df[self.feature_columns]
+
     # =====================================================
     # Public Methods
     # =====================================================
