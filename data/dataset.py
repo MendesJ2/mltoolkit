@@ -161,70 +161,80 @@ class Dataset(BaseComponent):
 
         if (
             self.config is not None
+            and column in self.config.ignore_columns
+        ):
+            return "ignored"
+    
+        if (
+            self.config is not None
             and column == self.config.target
         ):
             return "target"
-
-        if (
-            self.config is not None
-            and column == self.config.date_column
-        ):
-            return "date"
-
+    
         if (
             self.config is not None
             and column == self.config.source_column
         ):
             return "source"
-
+    
+        if (
+            self.config is not None
+            and column == self.config.date_column
+        ):
+            return "date"
+    
         if (
             self.config is not None
             and column in self.config.id_columns
         ):
             return "id"
+    
+        if (
+            self.config is not None
+            and self.config.feature_columns is not None
+        ):
+    
+            if column in self.config.feature_columns:
+                return "feature"
+    
+            return "ignored"
 
-        return "feature"
+    return "feature"
 
     # =====================================================
     # Infer variable type
     # =====================================================
-
     def _infer_variable_type(
         self,
         column,
         series,
     ):
-
-        # ----------------------------------------------
-        # Manual override
-        # ----------------------------------------------
-
+    
+        # Override manual
         if (
             self.config is not None
             and column in self.config.variable_types
         ):
             return self.config.variable_types[column]
-
-        # ----------------------------------------------
-        # Automatic inference
-        # ----------------------------------------------
-
+    
+    
+        # Datetime real
         if pd.api.types.is_datetime64_any_dtype(series):
-
+    
             return "datetime"
-
-        unique = series.nunique()
-
-        if unique == 2:
-
+    
+    
+        # Binária
+        if series.nunique(dropna=True) == 2:
+    
             return "binary"
-
+    
+    
+        # Numéricas
         if pd.api.types.is_numeric_dtype(series):
-
-            if unique < 10:
-
-                return "categorical"
-
+    
             return "continuous"
-
+    
+    
+        # Texto / categorias
         return "categorical"
