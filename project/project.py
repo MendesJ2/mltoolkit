@@ -1,7 +1,6 @@
 from mltoolkit.core.base import BaseComponent
 from mltoolkit.data.dataset import Dataset
-from projects.insurance.features import build_features
-from mltoolkit.features import FeatureTransformer
+
 
 class BaseProject(BaseComponent):
 
@@ -18,7 +17,11 @@ class BaseProject(BaseComponent):
 
         self.dataset = None
 
-    def load_dataset(self, dataframe):
+
+    def load_dataset(
+        self,
+        dataframe,
+    ):
 
         self.dataset = Dataset(
             dataframe=dataframe,
@@ -26,32 +29,23 @@ class BaseProject(BaseComponent):
             logger=self.logger,
         )
 
-        self.info("Dataset loaded.")
+        self.info(
+            "Dataset loaded."
+        )
 
-        features = build_features()
-    
-        transformer = FeatureTransformer(
-            features
-        )
-        
-        
-        df_features = transformer.transform(
-            dataset.df
-        )
-        
-        
-        dataset.add_features(
-            df_features,
-            features.names()
-        )
+        return self.dataset
+
 
     def summary(self):
 
         print("=" * 50)
 
-        print(self.config.project_name)
+        print(
+            self.config.project_name
+        )
 
         print("=" * 50)
+
 
         if self.dataset is not None:
 
@@ -59,4 +53,6 @@ class BaseProject(BaseComponent):
 
         else:
 
-            print("No dataset loaded.")
+            print(
+                "No dataset loaded."
+            )
