@@ -107,26 +107,35 @@ class EDAFeature(BaseComponent):
         self,
         n_bins=10
     ):
-
+    
+        metadata = (
+            self.dataset.metadata
+            .to_dataframe()
+            .query(
+                "name == @self.feature_name"
+            )
+            .iloc[0]
+        )
+    
+    
         table = target_analysis(
-
+    
             df=self.dataset.df,
-
+    
             feature=self.feature_name,
-
+    
             target=self.dataset.config.target,
-
-            variable_type=self.metadata.variable_type,
-
+    
+            variable_type=metadata["variable_type"],
+    
             n_bins=n_bins
         )
-
-
+    
+    
         return FeatureAnalysis(
-
+    
             feature_name=self.feature_name,
-
+    
             table=table
-
+    
         )
-
