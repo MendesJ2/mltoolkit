@@ -2,20 +2,28 @@ import pandas as pd
 
 
 def create_bins(
-    series,
-    n_bins=10
+    series: pd.Series,
+    n_bins: int = 10,
 ):
     """
-    Creates quantile bins for continuous variables.
+    Create quantile bins for continuous variables.
     """
 
-    valid = series.dropna()
+    series = series.copy()
 
-    if valid.nunique() <= n_bins:
-        return series
+    if series.dropna().nunique() <= n_bins:
+        return series.astype(str)
 
-    return pd.qcut(
-        series,
-        q=n_bins,
-        duplicates="drop"
-    )
+    try:
+
+        bins = pd.qcut(
+            series,
+            q=n_bins,
+            duplicates="drop"
+        )
+
+        return bins.astype(str)
+
+    except ValueError:
+
+        return series.astype(str)
