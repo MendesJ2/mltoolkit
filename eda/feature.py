@@ -11,8 +11,6 @@ from .plots import (
     plot_binary,
 )
 
-from .target import target_summary
-
 from .target import target_analysis
 
 from .feature_analysis import FeatureAnalysis
