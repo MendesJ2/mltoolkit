@@ -3,15 +3,28 @@ import pandas as pd
 from .binning import create_bins
 
 
-def target_analysis(
-    df,
-    feature,
-    target,
-    variable_type,
-    n_bins=10
-):
 
-    data = df[[feature, target]].copy()
+def target_analysis(
+    df: pd.DataFrame,
+    feature: str,
+    target: str,
+    variable_type: str,
+    n_bins: int = 10,
+):
+    """
+    Analyse feature vs binary target.
+
+    Returns:
+        DataFrame with volume and target rate.
+    """
+
+
+    data = df[
+        [
+            feature,
+            target
+        ]
+    ].copy()
 
 
     if variable_type == "continuous":
@@ -21,25 +34,38 @@ def target_analysis(
             n_bins=n_bins
         )
 
-        group = "_bin"
+        group_column = "_bin"
 
     else:
 
-        group = feature
+        group_column = feature
+
 
 
     result = (
 
         data
-        .groupby(group, dropna=False)
+        .groupby(
+            group_column,
+            dropna=False
+        )
 
         .agg(
 
-            observations=(target, "size"),
+            observations=(
+                target,
+                "count"
+            ),
 
-            events=(target, "sum"),
+            events=(
+                target,
+                "sum"
+            ),
 
-            target_rate=(target, "mean")
+            target_rate=(
+                target,
+                "mean"
+            )
 
         )
 
@@ -50,7 +76,15 @@ def target_analysis(
 
     result["non_events"] = (
         result["observations"]
-        - result["events"]
+        -
+        result["events"]
+    )
+
+
+    result["event_rate_index"] = (
+        result["target_rate"]
+        /
+        df[target].mean()
     )
 
 
