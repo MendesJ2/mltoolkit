@@ -15,17 +15,9 @@ class FeatureAnalysis:
         self.table = table
 
 
-
     def get_table(self):
 
         return self.table
-
-
-
-    def summary(self):
-
-        return self.table
-
 
 
     def __repr__(self):
