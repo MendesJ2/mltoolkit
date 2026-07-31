@@ -1,21 +1,46 @@
 import pandas as pd
 
+from .binning import create_bins
 
-def target_summary(
+
+def target_analysis(
     df,
     feature,
-    target
+    target,
+    variable_type,
+    n_bins=10
 ):
+
+    data = df[[feature, target]].copy()
+
+
+    if variable_type == "continuous":
+
+        data["_bin"] = create_bins(
+            data[feature],
+            n_bins=n_bins
+        )
+
+        group = "_bin"
+
+    else:
+
+        group = feature
+
 
     result = (
 
-        df
-        .groupby(feature)[target]
+        data
+        .groupby(group, dropna=False)
+
         .agg(
-            [
-                "count",
-                "mean"
-            ]
+
+            observations=(target, "size"),
+
+            events=(target, "sum"),
+
+            target_rate=(target, "mean")
+
         )
 
         .reset_index()
@@ -23,11 +48,9 @@ def target_summary(
     )
 
 
-    result.rename(
-        columns={
-            "mean": "target_rate"
-        },
-        inplace=True
+    result["non_events"] = (
+        result["observations"]
+        - result["events"]
     )
 
 
