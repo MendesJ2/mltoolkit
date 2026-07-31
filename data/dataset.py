@@ -208,7 +208,7 @@ class Dataset(BaseComponent):
     
             return "ignored"
 
-    return "feature"
+        return "feature"
 
     # =====================================================
     # Infer variable type
