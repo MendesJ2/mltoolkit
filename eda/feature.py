@@ -15,6 +15,8 @@ from .target import target_summary
 
 from .target import target_analysis
 
+from .feature_analysis import FeatureAnalysis
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
@@ -101,47 +103,30 @@ class EDAFeature(BaseComponent):
             f"No plot implemented for {variable_type}"
         )
 
-    def target(self):
-        
-        target = (
-            self.dataset
-            .config
-            .target
-        )
-    
-    
-        return target_summary(
-    
-            self.dataset.df,
-    
-            self.feature_name,
-    
-            target
-    
-        )
-
-    def target_analysis(
+    def target(
         self,
         n_bins=10
     ):
-    
-        metadata = (
-            self.dataset
-            .feature(
-                self.feature_name
-            )
-        )
-    
-        return target_analysis(
-    
+
+        table = target_analysis(
+
             df=self.dataset.df,
-    
+
             feature=self.feature_name,
-    
+
             target=self.dataset.config.target,
-    
-            variable_type=metadata.variable_type,
-    
+
+            variable_type=self.metadata.variable_type,
+
             n_bins=n_bins
-    
         )
+
+
+        return FeatureAnalysis(
+
+            feature_name=self.feature_name,
+
+            table=table
+
+        )
+
