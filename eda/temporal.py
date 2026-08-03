@@ -8,19 +8,20 @@ def temporal_analysis(
     date,
     variable_type,
     freq="M",
+    group=None,
 ):
-    """
-    Analyse feature evolution through time.
-    """
+
+    cols = [
+        feature,
+        target,
+        date,
+    ]
+
+    if group is not None:
+        cols.append(group)
 
 
-    data = df[
-        [
-            feature,
-            target,
-            date,
-        ]
-    ].copy()
+    data = df[cols].copy()
 
 
     data[date] = pd.to_datetime(
@@ -36,12 +37,18 @@ def temporal_analysis(
     )
 
 
-    # volume e target por período
+    grouping = ["period"]
+
+    if group is not None:
+        grouping.append(group)
+
+
+    # target evolution
 
     target_summary = (
 
         data
-        .groupby("period")
+        .groupby(grouping)
 
         .agg(
 
@@ -62,17 +69,17 @@ def temporal_analysis(
     )
 
 
+    # feature evolution
+
+    feature_grouping = grouping + [target]
+
+
     if variable_type == "continuous":
 
         feature_summary = (
 
             data
-            .groupby(
-                [
-                    "period",
-                    target
-                ]
-            )
+            .groupby(feature_grouping)
 
             .agg(
 
@@ -92,24 +99,23 @@ def temporal_analysis(
 
         )
 
-
     else:
 
         feature_summary = (
 
             data
-            .groupby(
-                [
-                    "period",
-                    target
-                ]
-            )[feature]
+            .groupby(feature_grouping)
 
-            .count()
+            .agg(
 
-            .reset_index(
-                name="observations"
+                observations=(
+                    feature,
+                    "count"
+                )
+
             )
+
+            .reset_index()
 
         )
 
