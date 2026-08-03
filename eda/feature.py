@@ -140,11 +140,14 @@ class EDAFeature(BaseComponent):
     
     
         return FeatureAnalysis(
-    
             feature_name=self.feature_name,
-    
-            table=table
-    
+            table=table,
+            variable_type=metadata[
+                "variable_type"
+            ],
+            global_rate=self.dataset.df[
+                self.dataset.config.target
+            ].mean(),
         )
 
     def compare(
