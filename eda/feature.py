@@ -165,7 +165,14 @@ class EDAFeature(BaseComponent):
             .iloc[0]
     
         )
-    
+        
+        table = compare_feature(
+            df=self.dataset.df,
+            feature=self.feature_name,
+            group=by,
+            variable_type=metadata["variable_type"],
+        )
+            
     
         return ComparisonAnalysis(
         
@@ -199,23 +206,23 @@ class EDAFeature(BaseComponent):
         )
     
     
-    result = temporal_analysis(
-    
-        df=self.dataset.df,
-    
-        feature=self.feature_name,
-    
-        target=self.dataset.config.target,
-    
-        date=date,
-    
-        variable_type=metadata["variable_type"],
-    
-        freq=freq,
-    
-        group=group,
-    
-    )
+        result = temporal_analysis(
+        
+            df=self.dataset.df,
+        
+            feature=self.feature_name,
+        
+            target=self.dataset.config.target,
+        
+            date=date,
+        
+            variable_type=metadata["variable_type"],
+        
+            freq=freq,
+        
+            group=group,
+        
+        )
     
     
         return TemporalAnalysis(
