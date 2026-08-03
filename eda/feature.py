@@ -231,3 +231,20 @@ class EDAFeature(BaseComponent):
             ]
     
         )
+
+
+    def quality(self):
+    
+    
+        table = quality_analysis(
+            self.series
+        )
+    
+    
+        return QualityAnalysis(
+    
+            feature_name=self.feature_name,
+    
+            table=table
+    
+        )
