@@ -209,49 +209,48 @@ class EDAFeature(BaseComponent):
         group=None,
     ):
     
-        metadata = (
+        if date not in self.dataset.df.columns:
+            raise ValueError(
+                f"Date column '{date}' not found."
+            )
     
+        if (
+            group is not None
+            and group not in self.dataset.df.columns
+        ):
+            raise ValueError(
+                f"Group column '{group}' not found."
+            )
+    
+        metadata = (
             self.dataset.metadata
             .to_dataframe()
             .query(
                 "name == @self.feature_name"
             )
             .iloc[0]
-    
         )
-    
     
         result = temporal_analysis(
-        
             df=self.dataset.df,
-        
             feature=self.feature_name,
-        
             target=self.dataset.config.target,
-        
             date=date,
-        
-            variable_type=metadata["variable_type"],
-        
-            freq=freq,
-        
-            group=group,
-        
-        )
-    
-    
-        return TemporalAnalysis(
-    
-            feature_name=self.feature_name,
-    
-            target_table=result["target"],
-    
-            feature_table=result["feature"],
-    
             variable_type=metadata[
                 "variable_type"
-            ]
+            ],
+            freq=freq,
+            group=group,
+        )
     
+        return TemporalAnalysis(
+            feature_name=self.feature_name,
+            target_table=result["target"],
+            feature_table=result["feature"],
+            variable_type=metadata[
+                "variable_type"
+            ],
+            group=group,
         )
 
 
