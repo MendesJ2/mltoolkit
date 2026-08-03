@@ -17,6 +17,9 @@ from .feature_analysis import FeatureAnalysis
 
 from .comparison import compare_feature
 
+from .temporal import temporal_analysis
+from .temporal_analysis import TemporalAnalysis
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
@@ -171,5 +174,57 @@ class EDAFeature(BaseComponent):
             variable_type=metadata[
                 "variable_type"
             ],
+    
+        )
+
+
+    def temporal(
+        self,
+        date,
+        freq="M",
+    ):
+    
+        metadata = (
+    
+            self.dataset.metadata
+            .to_dataframe()
+            .query(
+                "name == @self.feature_name"
+            )
+            .iloc[0]
+    
+        )
+    
+    
+        result = temporal_analysis(
+    
+            df=self.dataset.df,
+    
+            feature=self.feature_name,
+    
+            target=self.dataset.config.target,
+    
+            date=date,
+    
+            variable_type=metadata[
+                "variable_type"
+            ],
+    
+            freq=freq,
+    
+        )
+    
+    
+        return TemporalAnalysis(
+    
+            feature_name=self.feature_name,
+    
+            target_table=result["target"],
+    
+            feature_table=result["feature"],
+    
+            variable_type=metadata[
+                "variable_type"
+            ]
     
         )
