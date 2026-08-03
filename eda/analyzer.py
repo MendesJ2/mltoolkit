@@ -8,6 +8,15 @@ from .summarizers import (
     statistics_summary,
 )
 
+from .relationship_analysis import (
+    RelationshipAnalysis,
+)
+
+from .relationships import (
+    categorical_association,
+    numeric_correlation,
+)
+
 class EDAAnalyzer(BaseComponent):
     """
     Main entry point for exploratory data analysis.
@@ -67,4 +76,69 @@ class EDAAnalyzer(BaseComponent):
         )
 
     
+    def correlation(
+        self,
+        method="pearson",
+        columns=None,
+    ):
+    
+        if columns is None:
+    
+            columns = [
+                feature
+                for feature in (
+                    self.dataset.continuous
+                    + self.dataset.ordinal
+                    + self.dataset.binary
+                )
+                if (
+                    self.dataset
+                    .feature(feature)
+                    .role
+                    == "feature"
+                )
+            ]
+    
+        matrix = numeric_correlation(
+            df=self.dataset.df,
+            columns=columns,
+            method=method,
+        )
+    
+        return RelationshipAnalysis(
+            matrix=matrix,
+            method=method,
+        )
+    
+    
+    def categorical_relationships(
+        self,
+        columns=None,
+    ):
+    
+        if columns is None:
+    
+            columns = [
+                feature
+                for feature in (
+                    self.dataset.categorical
+                    + self.dataset.binary
+                    + self.dataset.ordinal
+                )
+                if (
+                    self.dataset
+                    .feature(feature)
+                    .role
+                    == "feature"
+                )
+            ]
+    
+        matrix = categorical_association(
+            df=self.dataset.df,
+            columns=columns,
+        )
+    
+        return RelationshipAnalysis(
+            matrix=matrix,
+            method="cramers_v",
         )
