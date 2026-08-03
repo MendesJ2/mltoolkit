@@ -1,26 +1,99 @@
-def compare_source(
+import pandas as pd
+
+
+def compare_feature(
     df,
-    source,
-    target
+    feature,
+    group,
+    variable_type,
+    n_bins=10,
 ):
 
-    return (
+    data = df[
+        [
+            feature,
+            group,
+        ]
+    ].copy()
 
-        df
-        .groupby(source)[target]
-        .agg(
-            [
-                "count",
-                "mean"
-            ]
+
+    if variable_type == "continuous":
+
+        summary = (
+
+            data
+            .groupby(group)
+
+            .agg(
+
+                observations=(
+                    feature,
+                    "count"
+                ),
+
+                mean=(
+                    feature,
+                    "mean"
+                ),
+
+                median=(
+                    feature,
+                    "median"
+                ),
+
+                std=(
+                    feature,
+                    "std"
+                ),
+
+                min=(
+                    feature,
+                    "min"
+                ),
+
+                max=(
+                    feature,
+                    "max"
+                ),
+
+            )
+
+            .reset_index()
+
         )
 
-        .rename(
-            columns={
-                "mean":"target_rate"
-            }
+    else:
+
+        summary = (
+
+            data
+            .groupby(
+                [
+                    group,
+                    feature,
+                ],
+                dropna=False,
+            )
+
+            .size()
+
+            .reset_index(
+                name="observations"
+            )
+
         )
 
-        .reset_index()
+        summary["percentage"] = (
 
-    )
+            summary["observations"]
+
+            /
+
+            summary.groupby(group)[
+                "observations"
+            ].transform("sum")
+
+        )
+
+
+    return summary
