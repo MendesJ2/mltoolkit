@@ -27,6 +27,9 @@ from .quality_analysis import QualityAnalysis
 from .strength import feature_strength
 from .strength_analysis import StrengthAnalysis
 
+from .stability import stability_analysis
+from .stability_analysis import StabilityAnalysis
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
@@ -299,4 +302,47 @@ class EDAFeature(BaseComponent):
             feature_name=self.feature_name,
             table=result["table"],
             metrics=result["metrics"],
+        )
+
+    def stability(
+        self,
+        by,
+        reference=None,
+        n_bins=10,
+    ):
+    
+        if by not in self.dataset.df.columns:
+            raise ValueError(
+                f"Column '{by}' not found."
+            )
+    
+        metadata = (
+            self.dataset.metadata
+            .to_dataframe()
+            .query(
+                "name == @self.feature_name"
+            )
+            .iloc[0]
+        )
+    
+        result = stability_analysis(
+            df=self.dataset.df,
+            feature=self.feature_name,
+            by=by,
+            variable_type=metadata[
+                "variable_type"
+            ],
+            reference=reference,
+            n_bins=n_bins,
+        )
+    
+        return StabilityAnalysis(
+            feature_name=self.feature_name,
+            by=by,
+            summary=result["summary"],
+            detail=result["detail"],
+            distribution=result[
+                "distribution"
+            ],
+            reference=result["reference"],
         )
