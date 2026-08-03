@@ -23,8 +23,6 @@ class Dataset(BaseComponent):
         self.raw_df = dataframe.copy()
 
         self.df = dataframe.copy()
-        
-        self.generated_features = []
 
         self.metadata = Metadata()
 
@@ -83,11 +81,6 @@ class Dataset(BaseComponent):
     def modeling_dataframe(self):
 
         return self.df[self.feature_columns]
-
-    @property
-    def generated_columns(self):
-
-        return self.generated_features
 
     # =====================================================
     # Public Methods
@@ -247,20 +240,3 @@ class Dataset(BaseComponent):
     
         # Texto / categorias
         return "categorical"
-
-
-        def add_features(
-            self,
-            dataframe,
-            feature_names,
-        ):
-        
-            for feature in feature_names:
-        
-                if feature not in self.df.columns:
-        
-                    self.df[feature] = dataframe[feature]
-        
-                    self.generated_features.append(
-                        feature
-                    )
