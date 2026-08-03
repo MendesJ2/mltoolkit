@@ -21,6 +21,9 @@ from .comparison_analysis import ComparisonAnalysis
 from .temporal import temporal_analysis
 from .temporal_analysis import TemporalAnalysis
 
+from .quality import quality_analysis
+from .quality_analysis import QualityAnalysis
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
