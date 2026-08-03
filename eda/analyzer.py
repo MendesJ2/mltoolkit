@@ -17,6 +17,10 @@ from .relationships import (
     numeric_correlation,
 )
 
+from .quality_report import (
+    build_quality_report,
+)
+
 class EDAAnalyzer(BaseComponent):
     """
     Main entry point for exploratory data analysis.
@@ -141,4 +145,14 @@ class EDAAnalyzer(BaseComponent):
         return RelationshipAnalysis(
             matrix=matrix,
             method="cramers_v",
+        )
+
+    def quality_report(
+        self,
+        only_features=True,
+    ):
+    
+        return build_quality_report(
+            dataset=self.dataset,
+            only_features=only_features,
         )
