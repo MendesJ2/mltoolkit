@@ -1,44 +1,39 @@
-class ComparisonAnalysis:
+from mltoolkit.eda.plots.comparison import plot_comparison
+from mltoolkit.eda.statistics.comparison import comparison_test
 
+
+class ComparisonAnalysis:
+    """
+    Results of comparing one feature across population groups.
+    """
 
     def __init__(
         self,
         feature_name,
-        table,
-        variable_type,
         group,
+        variable_type,
+        table,
+        data,
     ):
-
         self.feature_name = feature_name
-
-        self.table = table
-
-        self.variable_type = variable_type
-
         self.group = group
-
+        self.variable_type = variable_type
+        self.table = table
+        self.data = data
 
     def plot(self):
-
-        from mltoolkit.eda.plots.comparison import (
-            plot_comparison
-        )
-
         return plot_comparison(
-            self.table,
-            self.feature_name,
-            self.variable_type,
-            self.group,
+            data=self.data,
+            table=self.table,
+            feature_name=self.feature_name,
+            variable_type=self.variable_type,
+            group=self.group,
         )
-
 
     def test(self):
-
-        from mltoolkit.eda.statistics.comparison import (
-            comparison_test
-        )
-
         return comparison_test(
-            self.table,
-            self.variable_type,
+            data=self.data,
+            feature_name=self.feature_name,
+            group=self.group,
+            variable_type=self.variable_type,
         )
