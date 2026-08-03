@@ -16,6 +16,7 @@ from .target import target_analysis
 from .feature_analysis import FeatureAnalysis
 
 from .comparison import compare_feature
+from .comparison_analysis import ComparisonAnalysis
 
 from .temporal import temporal_analysis
 from .temporal_analysis import TemporalAnalysis
@@ -163,18 +164,16 @@ class EDAFeature(BaseComponent):
         )
     
     
-        return compare_feature(
-    
-            df=self.dataset.df,
-    
-            feature=self.feature_name,
-    
+        return ComparisonAnalysis(
+        
+            feature_name=self.feature_name,
+        
+            table=table,
+        
+            variable_type=metadata["variable_type"],
+        
             group=by,
-    
-            variable_type=metadata[
-                "variable_type"
-            ],
-    
+        
         )
 
 
