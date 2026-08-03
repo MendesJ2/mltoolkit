@@ -7,8 +7,6 @@ from .summarizers import (
     missing_summary,
     statistics_summary,
 )
-from .comparison import compare_source
-
 
 class EDAAnalyzer(BaseComponent):
     """
@@ -68,14 +66,5 @@ class EDAAnalyzer(BaseComponent):
             logger=self.logger,
         )
 
-    def compare_sources(self):
-    
-        return compare_source(
-    
-            self.dataset.df,
-    
-            self.dataset.config.source_column,
-    
-            self.dataset.config.target
     
         )
