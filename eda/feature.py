@@ -24,6 +24,9 @@ from .temporal_analysis import TemporalAnalysis
 from .quality import quality_analysis
 from .quality_analysis import QualityAnalysis
 
+from .strength import feature_strength
+from .strength_analysis import StrengthAnalysis
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
@@ -263,4 +266,37 @@ class EDAFeature(BaseComponent):
     
             table=table
     
+        )
+
+
+    def strength(
+        self,
+        n_bins=10,
+        smoothing=0.5,
+    ):
+    
+        metadata = (
+            self.dataset.metadata
+            .to_dataframe()
+            .query(
+                "name == @self.feature_name"
+            )
+            .iloc[0]
+        )
+    
+        result = feature_strength(
+            df=self.dataset.df,
+            feature=self.feature_name,
+            target=self.dataset.config.target,
+            variable_type=metadata[
+                "variable_type"
+            ],
+            n_bins=n_bins,
+            smoothing=smoothing,
+        )
+    
+        return StrengthAnalysis(
+            feature_name=self.feature_name,
+            table=result["table"],
+            metrics=result["metrics"],
         )
