@@ -182,6 +182,7 @@ class EDAFeature(BaseComponent):
         self,
         date,
         freq="M",
+        group=None,
     ):
     
         metadata = (
@@ -196,23 +197,23 @@ class EDAFeature(BaseComponent):
         )
     
     
-        result = temporal_analysis(
+    result = temporal_analysis(
     
-            df=self.dataset.df,
+        df=self.dataset.df,
     
-            feature=self.feature_name,
+        feature=self.feature_name,
     
-            target=self.dataset.config.target,
+        target=self.dataset.config.target,
     
-            date=date,
+        date=date,
     
-            variable_type=metadata[
-                "variable_type"
-            ],
+        variable_type=metadata["variable_type"],
     
-            freq=freq,
+        freq=freq,
     
-        )
+        group=group,
+    
+    )
     
     
         return TemporalAnalysis(
