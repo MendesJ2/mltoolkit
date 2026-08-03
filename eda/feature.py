@@ -152,38 +152,44 @@ class EDAFeature(BaseComponent):
         by,
     ):
     
+        if by not in self.dataset.df.columns:
+            raise ValueError(
+                f"Group column '{by}' not found in dataset."
+            )
+    
         metadata = (
-    
             self.dataset.metadata
-    
             .to_dataframe()
-    
             .query(
                 "name == @self.feature_name"
             )
-    
             .iloc[0]
-    
         )
-        
+    
+        variable_type = metadata[
+            "variable_type"
+        ]
+    
         table = compare_feature(
             df=self.dataset.df,
             feature=self.feature_name,
             group=by,
-            variable_type=metadata["variable_type"],
+            variable_type=variable_type,
         )
-            
+    
+        data = self.dataset.df[
+            [
+                self.feature_name,
+                by,
+            ]
+        ].copy()
     
         return ComparisonAnalysis(
-        
             feature_name=self.feature_name,
-        
-            table=table,
-        
-            variable_type=metadata["variable_type"],
-        
             group=by,
-        
+            variable_type=variable_type,
+            table=table,
+            data=data,
         )
 
 
