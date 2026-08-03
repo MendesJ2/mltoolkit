@@ -15,6 +15,8 @@ from .target import target_analysis
 
 from .feature_analysis import FeatureAnalysis
 
+from .comparison import compare_feature
+
 class EDAFeature(BaseComponent):
     """
     Object representing a single feature analysis.
@@ -135,5 +137,39 @@ class EDAFeature(BaseComponent):
             feature_name=self.feature_name,
     
             table=table
+    
+        )
+
+    def compare(
+        self,
+        by,
+    ):
+    
+        metadata = (
+    
+            self.dataset.metadata
+    
+            .to_dataframe()
+    
+            .query(
+                "name == @self.feature_name"
+            )
+    
+            .iloc[0]
+    
+        )
+    
+    
+        return compare_feature(
+    
+            df=self.dataset.df,
+    
+            feature=self.feature_name,
+    
+            group=by,
+    
+            variable_type=metadata[
+                "variable_type"
+            ],
     
         )
