@@ -6,9 +6,6 @@ from mltoolkit.eda.plots.temporal import (
 
 
 class TemporalAnalysis:
-    """
-    Container for temporal-analysis results.
-    """
 
     def __init__(
         self,
@@ -16,12 +13,14 @@ class TemporalAnalysis:
         target_table,
         feature_table,
         variable_type,
+        target_name,
         group=None,
     ):
         self.feature_name = feature_name
         self.target_table = target_table
         self.feature_table = feature_table
         self.variable_type = variable_type
+        self.target_name = target_name
         self.group = group
 
     def summary(self):
