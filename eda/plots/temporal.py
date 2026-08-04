@@ -111,7 +111,7 @@ def plot_feature_temporal(
 
     required_columns = {
         "period",
-        "target",
+        target_name,
         "mean_feature",
     }
 
@@ -133,7 +133,7 @@ def plot_feature_temporal(
 
         for target_value, target_data in (
             table.groupby(
-                "target",
+                target_name,
                 dropna=False,
                 sort=False,
             )
@@ -174,7 +174,7 @@ def plot_feature_temporal(
 
         grouping_columns = [
             group,
-            "target",
+            target_name,
         ]
 
         for keys, line_data in (
