@@ -247,9 +247,8 @@ class EDAFeature(BaseComponent):
             feature_name=self.feature_name,
             target_table=result["target"],
             feature_table=result["feature"],
-            variable_type=metadata[
-                "variable_type"
-            ],
+            variable_type=metadata["variable_type"],
+            target_name=self.dataset.config.target,
             group=group,
         )
 
