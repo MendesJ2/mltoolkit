@@ -49,6 +49,7 @@ class TemporalAnalysis:
         return plot_feature_temporal(
             table=self.feature_table,
             feature_name=self.feature_name,
+            target_name=self.target_name,
             group=self.group,
         )
 
