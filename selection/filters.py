@@ -91,6 +91,12 @@ class FeatureFilter:
         features = list(
             self.dataset.feature_columns
         )
+        
+        if not features:
+            raise ValueError(
+                "No eligible features found. "
+                "Check config.feature_columns and feature roles."
+            )
 
         report = self._build_base_report(
             features
