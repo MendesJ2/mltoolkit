@@ -99,6 +99,7 @@ def plot_target_temporal(
 def plot_feature_temporal(
     table,
     feature_name,
+    target_name,
     group=None,
 ):
     """
