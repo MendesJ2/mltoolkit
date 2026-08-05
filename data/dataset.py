@@ -159,49 +159,70 @@ class Dataset(BaseComponent):
     # Infer role
     # =====================================================
 
-    def _infer_role(self, column):
-
+    def _infer_role(
+        self,
+        column,
+    ):
+    
         if (
             self.config is not None
-            and column in self.config.ignore_columns
+            and column
+            in self.config.role_overrides
+        ):
+            return (
+                self.config
+                .role_overrides[column]
+            )
+    
+        if (
+            self.config is not None
+            and column
+            in self.config.ignore_columns
         ):
             return "ignored"
     
         if (
             self.config is not None
-            and column == self.config.target
+            and column
+            == self.config.target
         ):
             return "target"
     
         if (
             self.config is not None
-            and column == self.config.source_column
+            and column
+            == self.config.source_column
         ):
             return "source"
     
         if (
             self.config is not None
-            and column == self.config.date_column
+            and column
+            == self.config.date_column
         ):
             return "date"
     
         if (
             self.config is not None
-            and column in self.config.id_columns
+            and column
+            in self.config.id_columns
         ):
             return "id"
     
         if (
             self.config is not None
-            and self.config.feature_columns is not None
+            and self.config.feature_columns
+            is not None
         ):
     
-            if column in self.config.feature_columns:
+            if column in (
+                self.config.feature_columns
+            ):
                 return "feature"
     
             return "ignored"
-
-        return "feature"
+    
+        return "feature"                
 
     # =====================================================
     # Infer variable type
