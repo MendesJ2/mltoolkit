@@ -23,6 +23,10 @@ class Config:
         default_factory=dict
     )
 
+    role_overrides: dict[str, str] = field(
+    default_factory=dict
+    )
+    
     random_state: int = 42
 
     test_size: float = 0.20
