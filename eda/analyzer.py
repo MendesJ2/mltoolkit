@@ -21,6 +21,8 @@ from .quality_report import (
     build_quality_report,
 )
 
+from .report import EDAReport
+
 class EDAAnalyzer(BaseComponent):
     """
     Main entry point for exploratory data analysis.
@@ -156,3 +158,32 @@ class EDAAnalyzer(BaseComponent):
             dataset=self.dataset,
             only_features=only_features,
         )
+
+    def export_report(
+        self,
+        output_folder,
+        *,
+        date_column=None,
+        temporal_freq="Q",
+        source_column=None,
+        stability_by=None,
+        stability_reference=None,
+        n_bins=10,
+        include_ignored=False,
+    ):
+    
+        report = EDAReport(
+            eda=self,
+            output_folder=output_folder,
+            date_column=date_column,
+            temporal_freq=temporal_freq,
+            source_column=source_column,
+            stability_by=stability_by,
+            stability_reference=(
+                stability_reference
+            ),
+            n_bins=n_bins,
+            include_ignored=include_ignored,
+        )
+    
+        return report.export()    
