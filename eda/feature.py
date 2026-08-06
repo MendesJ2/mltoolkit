@@ -263,14 +263,29 @@ class EDAFeature(BaseComponent):
             ],
             freq=freq,
             group=group,
+            special_values=getattr(
+                self.dataset.config,
+                "special_values",
+                [
+                    -999,
+                    -9999,
+                ],
+            ),
         )
     
         return TemporalAnalysis(
             feature_name=self.feature_name,
             target_table=result["target"],
             feature_table=result["feature"],
-            variable_type=metadata["variable_type"],
-            target_name=self.dataset.config.target,
+            variable_type=metadata[
+                "variable_type"
+            ],
+            target_name=(
+                self.dataset.config.target
+            ),
+            analysis_type=result[
+                "analysis_type"
+            ],
             group=group,
         )
 
