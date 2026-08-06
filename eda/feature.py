@@ -118,8 +118,18 @@ class EDAFeature(BaseComponent):
 
     def target(
         self,
-        n_bins=10
+        n_bins=10,
+        group=None,
+        confidence_level=0.95,
     ):
+    
+        if (
+            group is not None
+            and group not in self.dataset.df.columns
+        ):
+            raise ValueError(
+                f"Group column '{group}' not found."
+            )
     
         metadata = (
             self.dataset.metadata
@@ -130,20 +140,31 @@ class EDAFeature(BaseComponent):
             .iloc[0]
         )
     
-    
-        table = target_analysis(
-    
-            df=self.dataset.df,
-    
-            feature=self.feature_name,
-    
-            target=self.dataset.config.target,
-    
-            variable_type=metadata["variable_type"],
-    
-            n_bins=n_bins
+        special_values = getattr(
+            self.dataset.config,
+            "special_values",
+            [
+                -999,
+                -9999,
+            ],
         )
     
+        table = target_analysis(
+            df=self.dataset.df,
+            feature=self.feature_name,
+            target=self.dataset.config.target,
+            variable_type=metadata[
+                "variable_type"
+            ],
+            n_bins=n_bins,
+            group=group,
+            special_values=(
+                special_values
+            ),
+            confidence_level=(
+                confidence_level
+            ),
+        )
     
         return FeatureAnalysis(
             feature_name=self.feature_name,
@@ -154,6 +175,7 @@ class EDAFeature(BaseComponent):
             global_rate=self.dataset.df[
                 self.dataset.config.target
             ].mean(),
+            group=group,
         )
 
     def compare(
