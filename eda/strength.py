@@ -145,3 +145,82 @@ def feature_strength(
         "table": table,
         "metrics": metrics,
     }
+
+
+def feature_strength_by_group(
+    df,
+    feature,
+    target,
+    variable_type,
+    group,
+    n_bins=10,
+    smoothing=0.5,
+    special_values=None,
+):
+    """
+    Calculate IV, KS and lift globally and by group.
+    """
+
+    records = []
+
+    global_result = feature_strength(
+        df=df,
+        feature=feature,
+        target=target,
+        variable_type=variable_type,
+        n_bins=n_bins,
+        smoothing=smoothing,
+        special_values=(
+            special_values
+        ),
+    )
+
+    records.append(
+        {
+            "feature": feature,
+            "group_value": "Global",
+            **global_result[
+                "metrics"
+            ].to_dict(),
+        }
+    )
+
+    for group_value, group_df in (
+        df.groupby(
+            group,
+            dropna=False,
+            sort=False,
+        )
+    ):
+
+        try:
+
+            result = feature_strength(
+                df=group_df,
+                feature=feature,
+                target=target,
+                variable_type=variable_type,
+                n_bins=n_bins,
+                smoothing=smoothing,
+                special_values=(
+                    special_values
+                ),
+            )
+
+            records.append(
+                {
+                    "feature": feature,
+                    "group_value": (
+                        str(group_value)
+                    ),
+                    **result[
+                        "metrics"
+                    ].to_dict(),
+                }
+            )
+
+        except ValueError:
+
+            continue
+
+    return pd.DataFrame(records)
