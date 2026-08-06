@@ -11,16 +11,15 @@ def feature_strength(
     variable_type,
     n_bins=10,
     smoothing=0.5,
+    group=None,
+    special_values=None,
 ):
     """
-    Calculate univariate predictive-strength metrics.
+    Calculate WoE, IV, lift, gain and KS globally
+    and, optionally, by group.
 
-    Metrics:
-        - WoE
-        - IV
-        - Lift
-        - Cumulative gain
-        - KS
+    The same continuous bins are used globally and
+    across all group values.
     """
 
     table = target_analysis(
@@ -29,122 +28,245 @@ def feature_strength(
         target=target,
         variable_type=variable_type,
         n_bins=n_bins,
+        group=group,
+        special_values=special_values,
     ).copy()
 
-    total_events = table["events"].sum()
-    total_non_events = table["non_events"].sum()
-    total_observations = table["observations"].sum()
-
-    if total_events == 0:
-        raise ValueError(
-            "Target contains no events."
-        )
-
-    if total_non_events == 0:
-        raise ValueError(
-            "Target contains no non-events."
-        )
-
-    n_groups = len(table)
-
-    table["event_distribution"] = (
-        table["events"] + smoothing
-    ) / (
-        total_events
-        + smoothing * n_groups
+    table = _calculate_strength_columns(
+        table=table,
+        smoothing=smoothing,
     )
 
-    table["non_event_distribution"] = (
-        table["non_events"] + smoothing
-    ) / (
-        total_non_events
-        + smoothing * n_groups
+    metrics = _build_strength_metrics(
+        table=table,
+        feature=feature,
     )
 
-    table["woe"] = np.log(
-        table["event_distribution"]
-        / table["non_event_distribution"]
-    )
-
-    table["iv_component"] = (
-        table["event_distribution"]
-        - table["non_event_distribution"]
-    ) * table["woe"]
-
-    global_target_rate = (
-        total_events
-        / total_observations
-    )
-
-    table["lift"] = (
-        table["target_rate"]
-        / global_target_rate
-    )
-
-    # Para gain e KS, ordenar do maior para o menor target rate.
-    table = (
-        table
-        .sort_values(
-            "target_rate",
-            ascending=False,
-        )
-        .reset_index(drop=True)
-    )
-
-    table["population_pct"] = (
-        table["observations"]
-        / total_observations
-    )
-
-    table["cumulative_population_pct"] = (
-        table["population_pct"]
-        .cumsum()
-    )
-
-    table["cumulative_event_pct"] = (
-        table["events"]
-        .cumsum()
-        / total_events
-    )
-
-    table["cumulative_non_event_pct"] = (
-        table["non_events"]
-        .cumsum()
-        / total_non_events
-    )
-
-    table["gain"] = (
-        table["cumulative_event_pct"]
-    )
-
-    table["ks"] = (
-        table["cumulative_event_pct"]
-        - table["cumulative_non_event_pct"]
-    ).abs()
-
-    metrics = pd.Series(
-        {
-            "feature": feature,
-            "iv": table[
-                "iv_component"
-            ].sum(),
-            "max_ks": table["ks"].max(),
-            "max_lift": table["lift"].max(),
-            "global_target_rate": (
-                global_target_rate
-            ),
-            "n_groups": len(table),
-            "observations": (
-                total_observations
-            ),
-            "events": total_events,
-        }
+    global_metrics = (
+        metrics[
+            metrics["scope"] == "global"
+        ]
+        .iloc[0]
     )
 
     return {
         "table": table,
-        "metrics": metrics,
+        "metrics": global_metrics,
+        "group_metrics": metrics,
     }
+
+
+def _calculate_strength_columns(
+    table,
+    smoothing,
+):
+    """
+    Calculate metrics independently within each scope/group.
+    """
+
+    result_tables = []
+
+    for (
+        scope,
+        group_value,
+    ), segment in table.groupby(
+        [
+            "scope",
+            "group_value",
+        ],
+        dropna=False,
+        sort=False,
+    ):
+        segment = segment.copy()
+
+        total_events = segment[
+            "events"
+        ].sum()
+
+        total_non_events = segment[
+            "non_events"
+        ].sum()
+
+        total_observations = segment[
+            "observations"
+        ].sum()
+
+        if (
+            total_events == 0
+            or total_non_events == 0
+            or total_observations == 0
+        ):
+            segment["event_distribution"] = np.nan
+            segment["non_event_distribution"] = np.nan
+            segment["woe"] = np.nan
+            segment["iv_component"] = np.nan
+            segment["lift"] = np.nan
+            segment["cumulative_population_pct"] = np.nan
+            segment["cumulative_event_pct"] = np.nan
+            segment["cumulative_non_event_pct"] = np.nan
+            segment["gain"] = np.nan
+            segment["ks"] = np.nan
+            segment["cumulative_lift"] = np.nan
+
+            result_tables.append(segment)
+            continue
+
+        n_groups = len(segment)
+
+        segment["event_distribution"] = (
+            segment["events"] + smoothing
+        ) / (
+            total_events
+            + smoothing * n_groups
+        )
+
+        segment["non_event_distribution"] = (
+            segment["non_events"] + smoothing
+        ) / (
+            total_non_events
+            + smoothing * n_groups
+        )
+
+        segment["woe"] = np.log(
+            segment["event_distribution"]
+            / segment["non_event_distribution"]
+        )
+
+        segment["iv_component"] = (
+            segment["event_distribution"]
+            - segment["non_event_distribution"]
+        ) * segment["woe"]
+
+        segment_target_rate = (
+            total_events
+            / total_observations
+        )
+
+        segment["lift"] = (
+            segment["target_rate"]
+            / segment_target_rate
+        )
+
+        # Gain e KS exigem ordenação por propensão.
+        segment = (
+            segment
+            .sort_values(
+                "target_rate",
+                ascending=False,
+            )
+            .reset_index(drop=True)
+        )
+
+        segment["population_pct"] = (
+            segment["observations"]
+            / total_observations
+        )
+
+        segment[
+            "cumulative_population_pct"
+        ] = segment[
+            "population_pct"
+        ].cumsum()
+
+        segment[
+            "cumulative_event_pct"
+        ] = (
+            segment["events"].cumsum()
+            / total_events
+        )
+
+        segment[
+            "cumulative_non_event_pct"
+        ] = (
+            segment["non_events"].cumsum()
+            / total_non_events
+        )
+
+        segment["gain"] = (
+            segment[
+                "cumulative_event_pct"
+            ]
+        )
+
+        segment["ks"] = (
+            segment[
+                "cumulative_event_pct"
+            ]
+            - segment[
+                "cumulative_non_event_pct"
+            ]
+        ).abs()
+
+        segment["cumulative_lift"] = (
+            segment[
+                "cumulative_event_pct"
+            ]
+            / segment[
+                "cumulative_population_pct"
+            ].replace(0, np.nan)
+        )
+
+        result_tables.append(segment)
+
+    return pd.concat(
+        result_tables,
+        ignore_index=True,
+    )
+
+
+def _build_strength_metrics(
+    table,
+    feature,
+):
+    records = []
+
+    for (
+        scope,
+        group_value,
+    ), segment in table.groupby(
+        [
+            "scope",
+            "group_value",
+        ],
+        dropna=False,
+        sort=False,
+    ):
+        observations = segment[
+            "observations"
+        ].sum()
+
+        events = segment[
+            "events"
+        ].sum()
+
+        records.append(
+            {
+                "feature": feature,
+                "scope": scope,
+                "group_value": group_value,
+                "iv": segment[
+                    "iv_component"
+                ].sum(
+                    min_count=1
+                ),
+                "max_ks": segment[
+                    "ks"
+                ].max(),
+                "max_lift": segment[
+                    "lift"
+                ].max(),
+                "global_target_rate": (
+                    events / observations
+                    if observations > 0
+                    else np.nan
+                ),
+                "n_groups": len(segment),
+                "observations": observations,
+                "events": events,
+            }
+        )
+
+    return pd.DataFrame(records)
 
 
 def feature_strength_by_group(
@@ -158,69 +280,18 @@ def feature_strength_by_group(
     special_values=None,
 ):
     """
-    Calculate IV, KS and lift globally and by group.
+    Return one metrics row globally and per group.
     """
 
-    records = []
-
-    global_result = feature_strength(
+    result = feature_strength(
         df=df,
         feature=feature,
         target=target,
         variable_type=variable_type,
         n_bins=n_bins,
         smoothing=smoothing,
-        special_values=(
-            special_values
-        ),
+        group=group,
+        special_values=special_values,
     )
 
-    records.append(
-        {
-            "feature": feature,
-            "group_value": "Global",
-            **global_result[
-                "metrics"
-            ].to_dict(),
-        }
-    )
-
-    for group_value, group_df in (
-        df.groupby(
-            group,
-            dropna=False,
-            sort=False,
-        )
-    ):
-
-        try:
-
-            result = feature_strength(
-                df=group_df,
-                feature=feature,
-                target=target,
-                variable_type=variable_type,
-                n_bins=n_bins,
-                smoothing=smoothing,
-                special_values=(
-                    special_values
-                ),
-            )
-
-            records.append(
-                {
-                    "feature": feature,
-                    "group_value": (
-                        str(group_value)
-                    ),
-                    **result[
-                        "metrics"
-                    ].to_dict(),
-                }
-            )
-
-        except ValueError:
-
-            continue
-
-    return pd.DataFrame(records)
+    return result["group_metrics"]
