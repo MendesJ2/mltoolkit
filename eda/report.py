@@ -76,6 +76,7 @@ class EDAReport:
         self.quality = None
         self.strength = None
         self.stability = None
+        self.group_strength = None
 
         self.errors = []
 
@@ -155,13 +156,17 @@ class EDAReport:
         relationship_tables = (
             self._export_relationships()
         )
-
+        
+        self.group_strength = (
+            self._export_group_strength()
+        )
+        
         self._export_excel(
             relationship_tables
         )
-
+        
         self._export_index()
-
+        
         return self.output_folder
 
     # =====================================================
