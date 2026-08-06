@@ -6,230 +6,279 @@ def plot_target_temporal(
     feature_name=None,
     group=None,
 ):
-    """
-    Target-rate evolution over time.
-
-    When group is provided, creates one line per group value.
-    """
-
     fig = go.Figure()
 
-    if group is None:
+    grouping = (
+        group
+        if group is not None
+        else None
+    )
+
+    if grouping is None:
+
+        groups = [
+            (
+                "Global",
+                table,
+            )
+        ]
+
+    else:
+
+        groups = list(
+            table.groupby(
+                grouping,
+                dropna=False,
+                sort=False,
+            )
+        )
+
+    for label, data in groups:
+
+        data = data.sort_values(
+            "period"
+        )
 
         fig.add_trace(
             go.Scatter(
-                x=table["period"],
-                y=table["target_rate"],
+                x=data["period"],
+                y=data["target_rate"],
                 mode="lines+markers",
-                name="Target rate",
-                customdata=table[
+                name=str(label),
+                customdata=data[
                     ["observations"]
                 ],
                 hovertemplate=(
                     "Período: %{x}"
-                    "<br>Taxa de adesão: %{y:.2%}"
+                    "<br>Target rate: %{y:.2%}"
                     "<br>Observações: %{customdata[0]:,.0f}"
                     "<extra></extra>"
                 ),
             )
         )
 
-    else:
-
-        if group not in table.columns:
-            raise ValueError(
-                f"Group column '{group}' "
-                "not found in target table."
-            )
-
-        for group_value, group_data in (
-            table.groupby(
-                group,
-                dropna=False,
-                sort=False,
-            )
-        ):
-
-            group_data = group_data.sort_values(
-                "period"
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=group_data["period"],
-                    y=group_data["target_rate"],
-                    mode="lines+markers",
-                    name=str(group_value),
-                    customdata=group_data[
-                        ["observations"]
-                    ],
-                    hovertemplate=(
-                        f"{group}: {group_value}"
-                        "<br>Período: %{x}"
-                        "<br>Taxa de adesão: %{y:.2%}"
-                        "<br>Observações: %{customdata[0]:,.0f}"
-                        "<extra></extra>"
-                    ),
-                )
-            )
-
-    title = "Evolução temporal da taxa de adesão"
-
-    if feature_name is not None:
-        title = (
-            f"{feature_name} — "
-            "evolução temporal da taxa de adesão"
-        )
-
     fig.update_layout(
-        title=title,
+        title="Target rate temporal",
         template="plotly_white",
         height=500,
         xaxis_title="Período",
-        yaxis_title="Taxa de adesão",
+        yaxis_title="Target rate",
         yaxis_tickformat=".1%",
-        yaxis_rangemode="tozero",
+        hovermode="x unified",
         legend_title=group,
+    )
+
+    return fig
+
+
+def plot_continuous_feature_temporal(
+    table,
+    feature_name,
+    target_name,
+    group=None,
+    statistic="mean",
+):
+    """
+    Continuous temporal evolution by target.
+
+    statistic:
+        mean
+        median
+    """
+
+    valid_statistics = {
+        "mean",
+        "median",
+    }
+
+    if statistic not in valid_statistics:
+        raise ValueError(
+            "statistic must be 'mean' or 'median'."
+        )
+
+    value_column = (
+        f"{statistic}_feature"
+    )
+
+    fig = go.Figure()
+
+    grouping_columns = [
+        target_name
+    ]
+
+    if group is not None:
+        grouping_columns.insert(
+            0,
+            group,
+        )
+
+    for keys, data in table.groupby(
+        grouping_columns,
+        dropna=False,
+        sort=False,
+    ):
+
+        if not isinstance(
+            keys,
+            tuple,
+        ):
+            keys = (
+                keys,
+            )
+
+        if group is None:
+
+            target_value = keys[0]
+
+            label = (
+                f"Target={target_value}"
+            )
+
+        else:
+
+            group_value, target_value = keys
+
+            label = (
+                f"{group_value} | "
+                f"Target={target_value}"
+            )
+
+        data = data.sort_values(
+            "period"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=data["period"],
+                y=data[value_column],
+                mode="lines+markers",
+                name=label,
+                customdata=data[
+                    ["observations"]
+                ],
+                hovertemplate=(
+                    "Período: %{x}"
+                    f"<br>{statistic.capitalize()}: "
+                    "%{y:,.2f}"
+                    "<br>Observações: %{customdata[0]:,.0f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        title=(
+            f"{feature_name} temporal "
+            f"({statistic}) por target"
+        ),
+        template="plotly_white",
+        height=550,
+        xaxis_title="Período",
+        yaxis_title=(
+            f"{statistic.capitalize()} "
+            f"de {feature_name}"
+        ),
         hovermode="x unified",
     )
 
     return fig
 
 
-def plot_feature_temporal(
+def plot_categorical_feature_temporal(
     table,
     feature_name,
     target_name,
     group=None,
 ):
     """
-    Evolution of the mean continuous feature by target.
+    Category-share evolution over time by target.
 
-    When group is provided, creates one line for each
-    combination of group and target.
+    Each line represents category x target and,
+    optionally, group.
     """
-
-    required_columns = {
-        "period",
-        target_name,
-        "mean_feature",
-    }
-
-    missing_columns = (
-        required_columns
-        - set(table.columns)
-    )
-
-    if missing_columns:
-        raise ValueError(
-            "Feature temporal plot is only available "
-            "for continuous variables. Missing columns: "
-            f"{sorted(missing_columns)}"
-        )
 
     fig = go.Figure()
 
-    if group is None:
+    grouping_columns = [
+        "category",
+        target_name,
+    ]
 
-        for target_value, target_data in (
-            table.groupby(
-                target_name,
-                dropna=False,
-                sort=False,
-            )
-        ):
-
-            target_data = target_data.sort_values(
-                "period"
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=target_data["period"],
-                    y=target_data["mean_feature"],
-                    mode="lines+markers",
-                    name=f"Target={target_value}",
-                    customdata=target_data[
-                        ["observations"]
-                    ],
-                    hovertemplate=(
-                        f"Target: {target_value}"
-                        "<br>Período: %{x}"
-                        f"<br>Média {feature_name}: "
-                        "%{y:,.2f}"
-                        "<br>Observações: "
-                        "%{customdata[0]:,.0f}"
-                        "<extra></extra>"
-                    ),
-                )
-            )
-
-    else:
-
-        if group not in table.columns:
-            raise ValueError(
-                f"Group column '{group}' "
-                "not found in feature table."
-            )
-
-        grouping_columns = [
+    if group is not None:
+        grouping_columns.insert(
+            0,
             group,
-            target_name,
-        ]
+        )
 
-        for keys, line_data in (
-            table.groupby(
-                grouping_columns,
-                dropna=False,
-                sort=False,
-            )
+    for keys, data in table.groupby(
+        grouping_columns,
+        dropna=False,
+        sort=False,
+    ):
+
+        if not isinstance(
+            keys,
+            tuple,
         ):
-
-            group_value, target_value = keys
-
-            line_data = line_data.sort_values(
-                "period"
+            keys = (
+                keys,
             )
 
-            fig.add_trace(
-                go.Scatter(
-                    x=line_data["period"],
-                    y=line_data["mean_feature"],
-                    mode="lines+markers",
-                    name=(
-                        f"{group_value} | "
-                        f"Target={target_value}"
-                    ),
-                    customdata=line_data[
-                        ["observations"]
-                    ],
-                    hovertemplate=(
-                        f"{group}: {group_value}"
-                        f"<br>Target: {target_value}"
-                        "<br>Período: %{x}"
-                        f"<br>Média {feature_name}: "
-                        "%{y:,.2f}"
-                        "<br>Observações: "
-                        "%{customdata[0]:,.0f}"
-                        "<extra></extra>"
-                    ),
-                )
+        if group is None:
+
+            category, target_value = keys
+
+            label = (
+                f"{category} | "
+                f"Target={target_value}"
             )
+
+        else:
+
+            (
+                group_value,
+                category,
+                target_value,
+            ) = keys
+
+            label = (
+                f"{group_value} | "
+                f"{category} | "
+                f"Target={target_value}"
+            )
+
+        data = data.sort_values(
+            "period"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=data["period"],
+                y=data["category_share"],
+                mode="lines+markers",
+                name=label,
+                customdata=data[
+                    ["observations"]
+                ],
+                hovertemplate=(
+                    "Período: %{x}"
+                    "<br>Share: %{y:.2%}"
+                    "<br>Observações: %{customdata[0]:,.0f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     fig.update_layout(
         title=(
-            f"Evolução temporal de {feature_name} "
-            "por target"
+            f"Distribuição temporal de "
+            f"{feature_name} por target"
         ),
         template="plotly_white",
-        height=500,
+        height=600,
         xaxis_title="Período",
-        yaxis_title=f"Média de {feature_name}",
-        legend_title=(
-            group
-            if group is not None
-            else "Target"
-        ),
+        yaxis_title="Share da categoria",
+        yaxis_tickformat=".1%",
         hovermode="x unified",
     )
 
@@ -240,76 +289,53 @@ def plot_volume_temporal(
     table,
     group=None,
 ):
-    """
-    Observation volume over time.
-
-    When group is provided, creates stacked bars by group.
-    """
-
     fig = go.Figure()
 
     if group is None:
 
-        fig.add_trace(
-            go.Bar(
-                x=table["period"],
-                y=table["observations"],
-                name="Observações",
-                hovertemplate=(
-                    "Período: %{x}"
-                    "<br>Observações: %{y:,.0f}"
-                    "<extra></extra>"
-                ),
+        groups = [
+            (
+                "Observações",
+                table,
             )
-        )
+        ]
 
     else:
 
-        if group not in table.columns:
-            raise ValueError(
-                f"Group column '{group}' "
-                "not found in volume table."
-            )
-
-        for group_value, group_data in (
+        groups = list(
             table.groupby(
                 group,
                 dropna=False,
                 sort=False,
             )
-        ):
+        )
 
-            group_data = group_data.sort_values(
-                "period"
-            )
+    for label, data in groups:
 
-            fig.add_trace(
-                go.Bar(
-                    x=group_data["period"],
-                    y=group_data["observations"],
-                    name=str(group_value),
-                    hovertemplate=(
-                        f"{group}: {group_value}"
-                        "<br>Período: %{x}"
-                        "<br>Observações: %{y:,.0f}"
-                        "<extra></extra>"
-                    ),
-                )
+        data = data.sort_values(
+            "period"
+        )
+
+        fig.add_trace(
+            go.Bar(
+                x=data["period"],
+                y=data["observations"],
+                name=str(label),
             )
+        )
 
     fig.update_layout(
-        title="Evolução temporal do volume",
+        title="Volume temporal",
         template="plotly_white",
         height=450,
         xaxis_title="Período",
         yaxis_title="Observações",
-        legend_title=group,
         barmode=(
             "stack"
             if group is not None
             else "group"
         ),
-        hovermode="x unified",
+        legend_title=group,
     )
 
     return fig
