@@ -280,10 +280,44 @@ class EDAReport:
                 group=self.source_column,
             )
 
+            target_display_table = (
+                target_analysis.table[
+                    [
+                        "group_value",
+                        "feature_group",
+                        "observations",
+                        "target_rate",
+                        "population_pct",
+                    ]
+                ]
+                .rename(
+                    columns={
+                        "group_value": (
+                            self.source_column
+                            or "Population"
+                        )
+                    }
+                )
+                .copy()
+            )
+            
+            target_display_table = (
+                target_display_table
+                .sort_values(
+                    [
+                        self.source_column
+                        or "Population",
+                        "feature_group",
+                    ],
+                    kind="stable",
+                )
+                .reset_index(drop=True)
+            )
+            
             sections.append(
                 self._table_section(
                     "Feature vs target — table",
-                    target_analysis.table,
+                    target_display_table,
                 )
             )
 
