@@ -311,7 +311,16 @@ class EDAFeature(BaseComponent):
         self,
         n_bins=10,
         smoothing=0.5,
+        group=None,
     ):
+        if (
+            group is not None
+            and group
+            not in self.dataset.df.columns
+        ):
+            raise ValueError(
+                f"Group column '{group}' not found."
+            )
     
         metadata = (
             self.dataset.metadata
@@ -331,13 +340,26 @@ class EDAFeature(BaseComponent):
             ],
             n_bins=n_bins,
             smoothing=smoothing,
+            group=group,
+            special_values=getattr(
+                self.dataset.config,
+                "special_values",
+                [
+                    -999,
+                    -9999,
+                ],
+            ),
         )
     
         return StrengthAnalysis(
             feature_name=self.feature_name,
             table=result["table"],
             metrics=result["metrics"],
-        )
+            group_metrics=result[
+                "group_metrics"
+            ],
+            group=group,
+        )    
 
     def stability(
         self,
