@@ -810,7 +810,190 @@ class EDAReport:
                 )
 
         return tables
-
+    # =====================================================
+    # Group Strength
+    # =====================================================
+    
+    def _export_group_strength(
+        self,
+    ):
+        """
+        Export global feature-strength heatmaps by source group.
+    
+        Creates:
+            strength_by_group.html
+    
+        Contains:
+            - IV heatmap
+            - KS heatmap
+            - maximum lift heatmap
+            - detailed metrics table
+        """
+    
+        if self.source_column is None:
+            return pd.DataFrame()
+    
+        if (
+            self.source_column
+            not in self.dataset.df.columns
+        ):
+            return pd.DataFrame()
+    
+        try:
+    
+            table = (
+                self.eda.strength_by_group(
+                    group=self.source_column,
+                    n_bins=self.n_bins,
+                )
+            )
+    
+            if table.empty:
+                return table
+    
+            metric_configurations = [
+                (
+                    "iv",
+                    "Information Value por grupo",
+                ),
+                (
+                    "max_ks",
+                    "KS máximo por grupo",
+                ),
+                (
+                    "max_lift",
+                    "Lift máximo por grupo",
+                ),
+            ]
+    
+            sections = []
+    
+            for metric, title in (
+                metric_configurations
+            ):
+    
+                if metric not in table.columns:
+                    continue
+    
+                figure = (
+                    self.eda
+                    .plot_strength_by_group(
+                        group=self.source_column,
+                        metric=metric,
+                        n_bins=self.n_bins,
+                    )
+                )
+    
+                figure.update_layout(
+                    title=title
+                )
+    
+                sections.append(
+                    self._plot_section(
+                        title,
+                        figure,
+                    )
+                )
+    
+            display_columns = [
+                "feature",
+                "group_value",
+                "iv",
+                "max_ks",
+                "max_lift",
+                "global_target_rate",
+                "observations",
+                "events",
+            ]
+    
+            display_columns = [
+                column
+                for column in display_columns
+                if column in table.columns
+            ]
+    
+            display_table = (
+                table[
+                    display_columns
+                ]
+                .sort_values(
+                    [
+                        "feature",
+                        "group_value",
+                    ],
+                    kind="stable",
+                )
+                .reset_index(drop=True)
+            )
+    
+            sections.append(
+                self._table_section(
+                    "Métricas por feature e grupo",
+                    display_table,
+                )
+            )
+    
+            body = f"""
+            <div class="navigation">
+                <a href="index.html">
+                    ← Voltar ao índice
+                </a>
+            </div>
+    
+            <h1>
+                Feature strength por
+                {html.escape(self.source_column)}
+            </h1>
+    
+            <p>
+                Comparação do poder preditivo global e por
+                {html.escape(self.source_column)}.
+                Uma feature pode ter baixo IV global e ainda
+                ser relevante para uma tarefa específica.
+            </p>
+    
+            {
+                ''.join(
+                    self._wrap_section(
+                        section,
+                        index,
+                    )
+                    for index, section
+                    in enumerate(sections)
+                )
+            }
+            """
+    
+            page = self._simple_page(
+                title=(
+                    "Feature strength por grupo"
+                ),
+                body=body,
+            )
+    
+            output_path = (
+                self.output_folder
+                / "strength_by_group.html"
+            )
+    
+            output_path.write_text(
+                page,
+                encoding="utf-8",
+            )
+    
+            return table
+    
+        except Exception as error:
+    
+            self._register_error(
+                "__global__",
+                "strength_by_group",
+                error,
+            )
+    
+            return pd.DataFrame()
+    
+    
     # =====================================================
     # Excel
     # =====================================================
@@ -856,6 +1039,16 @@ class EDAReport:
                     index=False,
                 )
 
+            if (
+                self.group_strength is not None
+                and not self.group_strength.empty
+            ):
+                self.group_strength.to_excel(
+                    writer,
+                    sheet_name="Strength by group",
+                    index=False,
+                )
+            
             if (
                 self.stability is not None
                 and not self.stability.empty
@@ -925,11 +1118,36 @@ class EDAReport:
         body = f"""
         <h1>EDA Report</h1>
 
+        strength_link = ""
+        
+        if (
+            self.group_strength is not None
+            and not self.group_strength.empty
+        ):
+            strength_link = (
+                '<a href="strength_by_group.html">'
+                f'Strength por '
+                f'{html.escape(self.source_column)}'
+                '</a>'
+            )
         <div class="summary-links">
-            <a href="eda_summary.xlsx">Download Excel summary</a>
-            <a href="relationships/pearson.html">Pearson</a>
-            <a href="relationships/spearman.html">Spearman</a>
-            <a href="relationships/cramers_v.html">Cramér's V</a>
+            <a href="eda_summary.xlsx">
+                Download Excel summary
+            </a>
+        
+            {strength_link}
+        
+            <a href="relationships/pearson.html">
+                Pearson
+            </a>
+        
+            <a href="relationships/spearman.html">
+                Spearman
+            </a>
+        
+            <a href="relationships/cramers_v.html">
+                Cramér's V
+            </a>
         </div>
 
         <input
