@@ -298,19 +298,6 @@ class EDAReport:
                         )
                     }
                 )
-                .copy()
-            )
-            
-            target_display_table = (
-                target_display_table
-                .sort_values(
-                    [
-                        self.source_column
-                        or "Population",
-                        "feature_group",
-                    ],
-                    kind="stable",
-                )
                 .reset_index(drop=True)
             )
             
