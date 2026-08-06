@@ -1,5 +1,6 @@
 from mltoolkit.eda.plots.temporal import (
-    plot_feature_temporal,
+    plot_categorical_feature_temporal,
+    plot_continuous_feature_temporal,
     plot_target_temporal,
     plot_volume_temporal,
 )
@@ -14,6 +15,7 @@ class TemporalAnalysis:
         feature_table,
         variable_type,
         target_name,
+        analysis_type,
         group=None,
     ):
         self.feature_name = feature_name
@@ -21,6 +23,7 @@ class TemporalAnalysis:
         self.feature_table = feature_table
         self.variable_type = variable_type
         self.target_name = target_name
+        self.analysis_type = analysis_type
         self.group = group
 
     def summary(self):
@@ -38,19 +41,41 @@ class TemporalAnalysis:
             group=self.group,
         )
 
-    def plot_feature(self):
+    def plot_feature(
+        self,
+        statistic="mean",
+    ):
 
-        if self.variable_type != "continuous":
-            raise ValueError(
-                "plot_feature() is only available "
-                "for continuous variables in MVP1."
+        if (
+            self.analysis_type
+            == "continuous"
+        ):
+
+            return (
+                plot_continuous_feature_temporal(
+                    table=self.feature_table,
+                    feature_name=(
+                        self.feature_name
+                    ),
+                    target_name=(
+                        self.target_name
+                    ),
+                    group=self.group,
+                    statistic=statistic,
+                )
             )
 
-        return plot_feature_temporal(
-            table=self.feature_table,
-            feature_name=self.feature_name,
-            target_name=self.target_name,
-            group=self.group,
+        return (
+            plot_categorical_feature_temporal(
+                table=self.feature_table,
+                feature_name=(
+                    self.feature_name
+                ),
+                target_name=(
+                    self.target_name
+                ),
+                group=self.group,
+            )
         )
 
     def plot_volume(self):
@@ -58,14 +83,4 @@ class TemporalAnalysis:
         return plot_volume_temporal(
             table=self.target_table,
             group=self.group,
-        )
-
-    def __repr__(self):
-
-        return (
-            "TemporalAnalysis("
-            f"feature_name='{self.feature_name}', "
-            f"variable_type='{self.variable_type}', "
-            f"group='{self.group}'"
-            ")"
         )
