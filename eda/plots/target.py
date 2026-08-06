@@ -33,10 +33,21 @@ def _plot_continuous_target(
 ):
     fig = go.Figure()
 
-    global_table = table[
-        table["scope"] == "global"
-    ].copy()
+    global_table = (
+        table[
+            table["scope"] == "global"
+        ]
+        .copy()
+    )
 
+    global_rate = (
+        global_table["events"].sum()
+        / global_table[
+            "observations"
+        ].sum()
+    )
+
+    # Volume global
     fig.add_trace(
         go.Bar(
             x=global_table[
@@ -57,13 +68,16 @@ def _plot_continuous_target(
             hovertemplate=(
                 "Bin: %{x}"
                 "<br>Observações: %{y:,.0f}"
-                "<br>População: %{customdata[0]:.1%}"
-                "<br>Positivos: %{customdata[1]:,.0f}"
+                "<br>População: "
+                "%{customdata[0]:.1%}"
+                "<br>Positivos: "
+                "%{customdata[1]:,.0f}"
                 "<extra></extra>"
             ),
         )
     )
 
+    # Target rate global por bin
     fig.add_trace(
         go.Scatter(
             x=global_table[
@@ -78,27 +92,6 @@ def _plot_continuous_target(
             line={
                 "width": 4,
             },
-            error_y={
-                "type": "data",
-                "symmetric": False,
-                "array": (
-                    global_table[
-                        "target_rate_ci_upper"
-                    ]
-                    - global_table[
-                        "target_rate"
-                    ]
-                ),
-                "arrayminus": (
-                    global_table[
-                        "target_rate"
-                    ]
-                    - global_table[
-                        "target_rate_ci_lower"
-                    ]
-                ),
-                "visible": True,
-            },
             customdata=global_table[
                 [
                     "observations",
@@ -110,15 +103,20 @@ def _plot_continuous_target(
             hovertemplate=(
                 "Bin: %{x}"
                 "<br>Target rate: %{y:.2%}"
-                "<br>Observações: %{customdata[0]:,.0f}"
-                "<br>Positivos: %{customdata[1]:,.0f}"
-                "<br>População: %{customdata[2]:.1%}"
-                "<br>Lift: %{customdata[3]:.2f}"
+                "<br>Observações: "
+                "%{customdata[0]:,.0f}"
+                "<br>Positivos: "
+                "%{customdata[1]:,.0f}"
+                "<br>População: "
+                "%{customdata[2]:.1%}"
+                "<br>Lift: "
+                "%{customdata[3]:.2f}"
                 "<extra></extra>"
             ),
         )
     )
 
+    # Target rate por grupo/TAREFA
     if group is not None:
 
         group_table = table[
@@ -146,50 +144,60 @@ def _plot_continuous_target(
                     line={
                         "width": 2,
                     },
-                    error_y={
-                        "type": "data",
-                        "symmetric": False,
-                        "array": (
-                            data[
-                                "target_rate_ci_upper"
-                            ]
-                            - data[
-                                "target_rate"
-                            ]
-                        ),
-                        "arrayminus": (
-                            data[
-                                "target_rate"
-                            ]
-                            - data[
-                                "target_rate_ci_lower"
-                            ]
-                        ),
-                        "visible": True,
-                    },
                     customdata=data[
                         [
                             "observations",
                             "events",
                             "population_pct",
+                            "event_rate_index",
                         ]
                     ],
                     hovertemplate=(
                         f"{group}: {group_value}"
                         "<br>Bin: %{x}"
-                        "<br>Target rate: %{y:.2%}"
-                        "<br>Observações: %{customdata[0]:,.0f}"
-                        "<br>Positivos: %{customdata[1]:,.0f}"
-                        "<br>População do grupo: %{customdata[2]:.1%}"
+                        "<br>Target rate: "
+                        "%{y:.2%}"
+                        "<br>Observações: "
+                        "%{customdata[0]:,.0f}"
+                        "<br>Positivos: "
+                        "%{customdata[1]:,.0f}"
+                        "<br>População do grupo: "
+                        "%{customdata[2]:.1%}"
+                        "<br>Lift: "
+                        "%{customdata[3]:.2f}"
                         "<extra></extra>"
                     ),
                 )
             )
 
+    # Média global horizontal
+    fig.add_trace(
+        go.Scatter(
+            x=global_table[
+                "feature_group"
+            ],
+            y=[
+                global_rate
+            ] * len(global_table),
+            name=(
+                f"Média global "
+                f"({global_rate:.2%})"
+            ),
+            mode="lines",
+            yaxis="y2",
+            line={
+                "dash": "dash",
+                "width": 2,
+            },
+            hovertemplate=(
+                "Média global: %{y:.2%}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
     fig.update_layout(
-        title=(
-            f"{feature_name} vs target"
-        ),
+        title=f"{feature_name} vs target",
         template="plotly_white",
         height=550,
         hovermode="x unified",
@@ -230,9 +238,19 @@ def _plot_categorical_target(
 ):
     fig = go.Figure()
 
-    global_table = table[
-        table["scope"] == "global"
-    ]
+    global_table = (
+        table[
+            table["scope"] == "global"
+        ]
+        .copy()
+    )
+
+    global_rate = (
+        global_table["events"].sum()
+        / global_table[
+            "observations"
+        ].sum()
+    )
 
     tables = [
         (
@@ -260,32 +278,18 @@ def _plot_categorical_target(
                 )
             )
 
+    # Barras global + TAREFAS
     for label, data in tables:
 
         fig.add_trace(
             go.Bar(
-                x=data["feature_group"],
-                y=data["target_rate"],
+                x=data[
+                    "feature_group"
+                ],
+                y=data[
+                    "target_rate"
+                ],
                 name=label,
-                error_y={
-                    "type": "data",
-                    "symmetric": False,
-                    "array": (
-                        data[
-                            "target_rate_ci_upper"
-                        ]
-                        - data[
-                            "target_rate"
-                        ]
-                    ),
-                    "arrayminus": (
-                        data["target_rate"]
-                        - data[
-                            "target_rate_ci_lower"
-                        ]
-                    ),
-                    "visible": True,
-                },
                 customdata=data[
                     [
                         "observations",
@@ -298,19 +302,33 @@ def _plot_categorical_target(
                     f"{label}"
                     "<br>Categoria: %{x}"
                     "<br>Target rate: %{y:.2%}"
-                    "<br>Observações: %{customdata[0]:,.0f}"
-                    "<br>Positivos: %{customdata[1]:,.0f}"
-                    "<br>População: %{customdata[2]:.1%}"
-                    "<br>Lift: %{customdata[3]:.2f}"
+                    "<br>Observações: "
+                    "%{customdata[0]:,.0f}"
+                    "<br>Positivos: "
+                    "%{customdata[1]:,.0f}"
+                    "<br>População: "
+                    "%{customdata[2]:.1%}"
+                    "<br>Lift: "
+                    "%{customdata[3]:.2f}"
                     "<extra></extra>"
                 ),
             )
         )
 
-    fig.update_layout(
-        title=(
-            f"{feature_name} vs target"
+    # Média global horizontal
+    fig.add_hline(
+        y=global_rate,
+        line_dash="dash",
+        line_width=2,
+        annotation_text=(
+            f"Média global: "
+            f"{global_rate:.2%}"
         ),
+        annotation_position="top right",
+    )
+
+    fig.update_layout(
+        title=f"{feature_name} vs target",
         template="plotly_white",
         height=550,
         barmode="group",
