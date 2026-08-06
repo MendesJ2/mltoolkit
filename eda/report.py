@@ -276,7 +276,8 @@ class EDAReport:
 
         try:
             target_analysis = feature.target(
-                n_bins=self.n_bins
+                n_bins=self.n_bins,
+                group=self.source_column,
             )
 
             sections.append(
@@ -402,6 +403,15 @@ class EDAReport:
                     )
                 )
 
+                sections.append(
+                    self._plot_section(
+                        (
+                            "Temporal feature "
+                            "evolution by target"
+                        ),
+                        temporal.plot_feature(),
+                    )
+                )
                 if (
                     metadata.variable_type
                     == "continuous"
@@ -410,9 +420,11 @@ class EDAReport:
                         self._plot_section(
                             (
                                 "Temporal feature "
-                                "evolution by target"
+                                "median by target"
                             ),
-                            temporal.plot_feature(),
+                            temporal.plot_feature(
+                                statistic="median"
+                            ),
                         )
                     )
 
