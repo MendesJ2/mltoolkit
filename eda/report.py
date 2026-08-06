@@ -471,7 +471,8 @@ class EDAReport:
 
         try:
             strength = feature.strength(
-                n_bins=self.n_bins
+                n_bins=self.n_bins,
+                group=self.source_column,
             )
 
             strength_record = (
@@ -485,14 +486,45 @@ class EDAReport:
             sections.append(
                 self._table_section(
                     "Feature strength",
-                    strength.metrics,
+                    strength.group_metrics[
+                        [
+                            "group_value",
+                            "iv",
+                            "max_ks",
+                            "max_lift",
+                            "observations",
+                            "events",
+                        ]
+                    ],
                 )
             )
 
+            strength_display_table = (
+                strength.table[
+                    [
+                        "group_value",
+                        "feature_group",
+                        "observations",
+                        "target_rate",
+                        "woe",
+                        "iv_component",
+                        "lift",
+                    ]
+                ]
+                .rename(
+                    columns={
+                        "group_value": (
+                            self.source_column
+                            or "Population"
+                        )
+                    }
+                )
+            )
+            
             sections.append(
                 self._table_section(
                     "WoE / IV table",
-                    strength.table,
+                    strength_display_table,
                 )
             )
 
