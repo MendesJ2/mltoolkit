@@ -15,6 +15,7 @@ def stability_analysis(
     reference=None,
     n_bins=10,
     epsilon=1e-6,
+    special_values=None,
 ):
     """
     Calculate PSI between a reference population
@@ -80,8 +81,10 @@ def stability_analysis(
             create_bins(
                 data[feature],
                 n_bins=n_bins,
+                special_values=(
+                    special_values
+                ),
             )
-            .fillna(MISSING_LABEL)
             .astype(str)
         )
 
