@@ -13,20 +13,31 @@ class Config:
 
     source_column: str | None = None
 
-    id_columns: list[str] = field(default_factory=list)
+    id_columns: list[str] = field(
+        default_factory=list
+    )
 
     feature_columns: list[str] | None = None
-    
-    ignore_columns: list[str] = field(default_factory=list)
-    
+
+    ignore_columns: list[str] = field(
+        default_factory=list
+    )
+
     variable_types: dict[str, str] = field(
         default_factory=dict
     )
 
     role_overrides: dict[str, str] = field(
-    default_factory=dict
+        default_factory=dict
     )
-    
+
+    special_values: list = field(
+        default_factory=lambda: [
+            -999,
+            -9999,
+        ]
+    )
+
     random_state: int = 42
 
     test_size: float = 0.20
