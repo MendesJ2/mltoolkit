@@ -23,6 +23,16 @@ from .quality_report import (
 
 from .report import EDAReport
 
+import pandas as pd
+
+from .strength import (
+    feature_strength_by_group,
+)
+
+from .plots.group_strength import (
+    plot_group_strength_heatmap,
+)
+
 class EDAAnalyzer(BaseComponent):
     """
     Main entry point for exploratory data analysis.
@@ -186,4 +196,93 @@ class EDAAnalyzer(BaseComponent):
             include_ignored=include_ignored,
         )
     
-        return report.export()    
+        return report.export()
+
+    def strength_by_group(
+        self,
+        group,
+        columns=None,
+        n_bins=10,
+        smoothing=0.5,
+    ):
+    
+        if group not in self.dataset.df.columns:
+            raise ValueError(
+                f"Group column '{group}' not found."
+            )
+    
+        if columns is None:
+            columns = list(
+                self.dataset.feature_columns
+            )
+    
+        tables = []
+    
+        for feature_name in columns:
+    
+            metadata = self.dataset.feature(
+                feature_name
+            )
+    
+            try:
+    
+                table = feature_strength_by_group(
+                    df=self.dataset.df,
+                    feature=feature_name,
+                    target=self.dataset.config.target,
+                    variable_type=(
+                        metadata.variable_type
+                    ),
+                    group=group,
+                    n_bins=n_bins,
+                    smoothing=smoothing,
+                    special_values=getattr(
+                        self.dataset.config,
+                        "special_values",
+                        [
+                            -999,
+                            -9999,
+                        ],
+                    ),
+                )
+    
+                tables.append(table)
+    
+            except (
+                ValueError,
+                TypeError,
+            ):
+                continue
+    
+        if not tables:
+            return pd.DataFrame()
+    
+        return pd.concat(
+            tables,
+            ignore_index=True,
+        )
+    
+    
+    def plot_strength_by_group(
+        self,
+        group,
+        metric="iv",
+        columns=None,
+        n_bins=10,
+    ):
+    
+        table = self.strength_by_group(
+            group=group,
+            columns=columns,
+            n_bins=n_bins,
+        )
+    
+        if table.empty:
+            raise ValueError(
+                "No group strength results available."
+            )
+    
+        return plot_group_strength_heatmap(
+            table=table,
+            metric=metric,
+        )
