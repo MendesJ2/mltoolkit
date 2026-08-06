@@ -1089,9 +1089,9 @@ class EDAReport:
         self,
     ):
         table_rows = []
-
+    
         for _, row in self.overview.iterrows():
-
+    
             table_rows.append(
                 f"""
                 <tr>
@@ -1100,88 +1100,171 @@ class EDAReport:
                             {html.escape(str(row['feature']))}
                         </a>
                     </td>
-                    <td>{html.escape(str(row['variable_type']))}</td>
-                    <td>{self._format_percent(row['missing_pct'])}</td>
-                    <td>{self._format_number(row['n_unique'])}</td>
-                    <td>{self._format_number(row['iv'], 4)}</td>
-                    <td>{self._format_number(row['ks'], 4)}</td>
-                    <td>{self._format_number(row['max_psi'], 4)}</td>
+    
                     <td>
-                        <span class="status status-{row['status']}">
-                            {row['status']}
+                        {html.escape(
+                            str(row['variable_type'])
+                        )}
+                    </td>
+    
+                    <td>
+                        {
+                            self._format_percent(
+                                row["missing_pct"]
+                            )
+                        }
+                    </td>
+    
+                    <td>
+                        {
+                            self._format_number(
+                                row["n_unique"]
+                            )
+                        }
+                    </td>
+    
+                    <td>
+                        {
+                            self._format_number(
+                                row["iv"],
+                                4,
+                            )
+                        }
+                    </td>
+    
+                    <td>
+                        {
+                            self._format_number(
+                                row["ks"],
+                                4,
+                            )
+                        }
+                    </td>
+    
+                    <td>
+                        {
+                            self._format_number(
+                                row["max_psi"],
+                                4,
+                            )
+                        }
+                    </td>
+    
+                    <td>
+                        <span
+                            class="
+                                status
+                                status-{row['status']}
+                            "
+                        >
+                            {row["status"]}
                         </span>
                     </td>
                 </tr>
                 """
             )
-
-        body = f"""
-        <h1>EDA Report</h1>
-
+    
         strength_link = ""
-        
+    
         if (
             self.group_strength is not None
             and not self.group_strength.empty
         ):
+            group_name = (
+                self.source_column
+                or "grupo"
+            )
+    
             strength_link = (
                 '<a href="strength_by_group.html">'
-                f'Strength por '
-                f'{html.escape(self.source_column)}'
-                '</a>'
+                f"Strength por "
+                f"{html.escape(str(group_name))}"
+                "</a>"
             )
+    
+        body = f"""
+        <h1>EDA Report</h1>
+    
         <div class="summary-links">
+    
             <a href="eda_summary.xlsx">
                 Download Excel summary
             </a>
-        
+    
             {strength_link}
-        
+    
             <a href="relationships/pearson.html">
                 Pearson
             </a>
-        
+    
             <a href="relationships/spearman.html">
                 Spearman
             </a>
-        
+    
             <a href="relationships/cramers_v.html">
                 Cramér's V
             </a>
+    
         </div>
-
+    
         <input
             type="text"
             id="featureSearch"
             placeholder="Search feature..."
             onkeyup="filterFeatures()"
         >
-
+    
         <table id="featureTable">
+    
             <thead>
                 <tr>
-                    <th onclick="sortTable(0)">Feature</th>
-                    <th onclick="sortTable(1)">Type</th>
-                    <th onclick="sortTable(2)">Missing</th>
-                    <th onclick="sortTable(3)">Unique</th>
-                    <th onclick="sortTable(4)">IV</th>
-                    <th onclick="sortTable(5)">KS</th>
-                    <th onclick="sortTable(6)">PSI</th>
-                    <th onclick="sortTable(7)">Status</th>
+                    <th onclick="sortTable(0)">
+                        Feature
+                    </th>
+    
+                    <th onclick="sortTable(1)">
+                        Type
+                    </th>
+    
+                    <th onclick="sortTable(2)">
+                        Missing
+                    </th>
+    
+                    <th onclick="sortTable(3)">
+                        Unique
+                    </th>
+    
+                    <th onclick="sortTable(4)">
+                        IV
+                    </th>
+    
+                    <th onclick="sortTable(5)">
+                        KS
+                    </th>
+    
+                    <th onclick="sortTable(6)">
+                        PSI
+                    </th>
+    
+                    <th onclick="sortTable(7)">
+                        Status
+                    </th>
                 </tr>
             </thead>
+    
             <tbody>
                 {''.join(table_rows)}
             </tbody>
+    
         </table>
         """
-
+    
         page = self._simple_page(
             title="EDA Report",
             body=body,
             include_index_javascript=True,
         )
-
+    
         (
             self.output_folder
             / "index.html"
