@@ -391,6 +391,14 @@ class EDAFeature(BaseComponent):
             ],
             reference=reference,
             n_bins=n_bins,
+            special_values=getattr(
+                self.dataset.config,
+                "special_values",
+                [
+                    -999,
+                    -9999,
+                ],
+            ),
         )
     
         return StabilityAnalysis(
