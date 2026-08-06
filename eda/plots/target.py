@@ -1,42 +1,64 @@
 import plotly.graph_objects as go
 
 
-def plot_target_continuous(
+def plot_target_analysis(
     table,
     feature_name,
-    global_rate,
+    variable_type,
+    group=None,
 ):
     """
-    Volume and target rate by continuous-feature bin.
+    Plot target rate globally and, optionally, by group.
     """
 
-    category_column = table.columns[0]
+    if variable_type == "continuous":
 
-    x_values = (
-        table[category_column]
-        .astype(str)
+        return _plot_continuous_target(
+            table=table,
+            feature_name=feature_name,
+            group=group,
+        )
+
+    return _plot_categorical_target(
+        table=table,
+        feature_name=feature_name,
+        group=group,
     )
 
+
+def _plot_continuous_target(
+    table,
+    feature_name,
+    group,
+):
     fig = go.Figure()
+
+    global_table = table[
+        table["scope"] == "global"
+    ].copy()
 
     fig.add_trace(
         go.Bar(
-            x=x_values,
-            y=table["observations"],
+            x=global_table[
+                "feature_group"
+            ],
+            y=global_table[
+                "observations"
+            ],
             name="Observações",
-            opacity=0.4,
+            opacity=0.25,
             yaxis="y",
-            customdata=table[
+            customdata=global_table[
                 [
+                    "population_pct",
                     "events",
-                    "non_events",
                 ]
             ],
             hovertemplate=(
                 "Bin: %{x}"
                 "<br>Observações: %{y:,.0f}"
-                "<br>Adesões: %{customdata[0]:,.0f}"
-                "<br>Não adesões: %{customdata[1]:,.0f}"
+                "<br>População: %{customdata[0]:.1%}"
+                "<br>Positivos: %{customdata[1]:,.0f}"
                 "<extra></extra>"
             ),
         )
@@ -44,48 +66,141 @@ def plot_target_continuous(
 
     fig.add_trace(
         go.Scatter(
-            x=x_values,
-            y=table["target_rate"],
-            name="Taxa de adesão",
+            x=global_table[
+                "feature_group"
+            ],
+            y=global_table[
+                "target_rate"
+            ],
+            name="Global",
             mode="lines+markers",
             yaxis="y2",
-            customdata=table[
+            line={
+                "width": 4,
+            },
+            error_y={
+                "type": "data",
+                "symmetric": False,
+                "array": (
+                    global_table[
+                        "target_rate_ci_upper"
+                    ]
+                    - global_table[
+                        "target_rate"
+                    ]
+                ),
+                "arrayminus": (
+                    global_table[
+                        "target_rate"
+                    ]
+                    - global_table[
+                        "target_rate_ci_lower"
+                    ]
+                ),
+                "visible": True,
+            },
+            customdata=global_table[
                 [
+                    "observations",
+                    "events",
+                    "population_pct",
                     "event_rate_index",
                 ]
             ],
             hovertemplate=(
                 "Bin: %{x}"
-                "<br>Taxa de adesão: %{y:.2%}"
-                "<br>Índice vs média: %{customdata[0]:.2f}"
+                "<br>Target rate: %{y:.2%}"
+                "<br>Observações: %{customdata[0]:,.0f}"
+                "<br>Positivos: %{customdata[1]:,.0f}"
+                "<br>População: %{customdata[2]:.1%}"
+                "<br>Lift: %{customdata[3]:.2f}"
                 "<extra></extra>"
             ),
         )
     )
 
-    fig.add_trace(
-        go.Scatter(
-            x=x_values,
-            y=[global_rate] * len(table),
-            name="Taxa global",
-            mode="lines",
-            line={
-                "dash": "dash",
-            },
-            yaxis="y2",
-            hovertemplate=(
-                "Taxa global: %{y:.2%}"
-                "<extra></extra>"
-            ),
-        )
-    )
+    if group is not None:
+
+        group_table = table[
+            table["scope"] == "group"
+        ]
+
+        for group_value, data in (
+            group_table.groupby(
+                "group_value",
+                sort=False,
+            )
+        ):
+
+            fig.add_trace(
+                go.Scatter(
+                    x=data[
+                        "feature_group"
+                    ],
+                    y=data[
+                        "target_rate"
+                    ],
+                    name=str(group_value),
+                    mode="lines+markers",
+                    yaxis="y2",
+                    line={
+                        "width": 2,
+                    },
+                    error_y={
+                        "type": "data",
+                        "symmetric": False,
+                        "array": (
+                            data[
+                                "target_rate_ci_upper"
+                            ]
+                            - data[
+                                "target_rate"
+                            ]
+                        ),
+                        "arrayminus": (
+                            data[
+                                "target_rate"
+                            ]
+                            - data[
+                                "target_rate_ci_lower"
+                            ]
+                        ),
+                        "visible": True,
+                    },
+                    customdata=data[
+                        [
+                            "observations",
+                            "events",
+                            "population_pct",
+                        ]
+                    ],
+                    hovertemplate=(
+                        f"{group}: {group_value}"
+                        "<br>Bin: %{x}"
+                        "<br>Target rate: %{y:.2%}"
+                        "<br>Observações: %{customdata[0]:,.0f}"
+                        "<br>Positivos: %{customdata[1]:,.0f}"
+                        "<br>População do grupo: %{customdata[2]:.1%}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
 
     fig.update_layout(
-        title=f"{feature_name} vs target",
+        title=(
+            f"{feature_name} vs target"
+        ),
         template="plotly_white",
-        height=500,
+        height=550,
+        hovermode="x unified",
         xaxis={
             "title": feature_name,
+            "categoryorder": "array",
+            "categoryarray": (
+                global_table[
+                    "feature_group"
+                ].tolist()
+            ),
             "tickangle": 45,
         },
         yaxis={
@@ -93,7 +208,7 @@ def plot_target_continuous(
             "rangemode": "tozero",
         },
         yaxis2={
-            "title": "Taxa de adesão",
+            "title": "Target rate",
             "overlaying": "y",
             "side": "right",
             "tickformat": ".1%",
@@ -101,80 +216,124 @@ def plot_target_continuous(
         },
         legend={
             "orientation": "h",
-            "y": 1.12,
+            "y": 1.15,
         },
-        hovermode="x unified",
     )
 
     return fig
 
 
-def plot_target_categorical(
+def _plot_categorical_target(
     table,
     feature_name,
-    global_rate,
+    group,
 ):
-    """
-    Target rate by categorical or binary feature.
-    """
-
-    category_column = table.columns[0]
-
-    x_values = (
-        table[category_column]
-        .astype(str)
-    )
-
     fig = go.Figure()
 
-    fig.add_trace(
-        go.Bar(
-            x=x_values,
-            y=table["target_rate"],
-            name="Taxa de adesão",
-            text=[
-                f"{value:,.0f} obs."
-                for value in table[
-                    "observations"
-                ]
-            ],
-            textposition="inside",
-            customdata=table[
-                [
-                    "observations",
-                    "events",
-                    "event_rate_index",
-                ]
-            ],
-            hovertemplate=(
-                f"{feature_name}: %{{x}}"
-                "<br>Taxa de adesão: %{y:.2%}"
-                "<br>Observações: %{customdata[0]:,.0f}"
-                "<br>Adesões: %{customdata[1]:,.0f}"
-                "<br>Índice vs média: %{customdata[2]:.2f}"
-                "<extra></extra>"
-            ),
-        )
-    )
+    global_table = table[
+        table["scope"] == "global"
+    ]
 
-    fig.add_hline(
-        y=global_rate,
-        line_dash="dash",
-        annotation_text=(
-            f"Média global: {global_rate:.2%}"
-        ),
-        annotation_position="top right",
-    )
+    tables = [
+        (
+            "Global",
+            global_table,
+        )
+    ]
+
+    if group is not None:
+
+        for group_value, data in (
+            table[
+                table["scope"] == "group"
+            ]
+            .groupby(
+                "group_value",
+                sort=False,
+            )
+        ):
+
+            tables.append(
+                (
+                    str(group_value),
+                    data,
+                )
+            )
+
+    for label, data in tables:
+
+        fig.add_trace(
+            go.Bar(
+                x=data["feature_group"],
+                y=data["target_rate"],
+                name=label,
+                error_y={
+                    "type": "data",
+                    "symmetric": False,
+                    "array": (
+                        data[
+                            "target_rate_ci_upper"
+                        ]
+                        - data[
+                            "target_rate"
+                        ]
+                    ),
+                    "arrayminus": (
+                        data["target_rate"]
+                        - data[
+                            "target_rate_ci_lower"
+                        ]
+                    ),
+                    "visible": True,
+                },
+                customdata=data[
+                    [
+                        "observations",
+                        "events",
+                        "population_pct",
+                        "event_rate_index",
+                    ]
+                ],
+                hovertemplate=(
+                    f"{label}"
+                    "<br>Categoria: %{x}"
+                    "<br>Target rate: %{y:.2%}"
+                    "<br>Observações: %{customdata[0]:,.0f}"
+                    "<br>Positivos: %{customdata[1]:,.0f}"
+                    "<br>População: %{customdata[2]:.1%}"
+                    "<br>Lift: %{customdata[3]:.2f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     fig.update_layout(
-        title=f"{feature_name} vs target",
+        title=(
+            f"{feature_name} vs target"
+        ),
         template="plotly_white",
-        height=500,
-        xaxis_title=feature_name,
-        yaxis_title="Taxa de adesão",
-        yaxis_tickformat=".1%",
-        yaxis_rangemode="tozero",
-        showlegend=False,
+        height=550,
+        barmode="group",
+        xaxis={
+            "title": feature_name,
+            "categoryorder": "array",
+            "categoryarray": (
+                global_table[
+                    "feature_group"
+                ].tolist()
+            ),
+            "tickangle": 45,
+        },
+        yaxis={
+            "title": "Target rate",
+            "tickformat": ".1%",
+            "rangemode": "tozero",
+        },
+        legend_title=(
+            group
+            if group is not None
+            else None
+        ),
     )
 
     return fig
