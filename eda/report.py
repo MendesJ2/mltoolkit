@@ -76,7 +76,7 @@ class EDAReport:
         self.quality = None
         self.strength = None
         self.stability = None
-        self.group_strength = None
+        self.strength_overview = None
 
         self.errors = []
 
@@ -157,8 +157,8 @@ class EDAReport:
             self._export_relationships()
         )
         
-        self.group_strength = (
-            self._export_group_strength()
+        self.strength_overview = (
+            self._export_strength_overview()
         )
         
         self._export_excel(
@@ -811,187 +811,324 @@ class EDAReport:
 
         return tables
     # =====================================================
-    # Group Strength
+    # Strength Overview
     # =====================================================
     
-    def _export_group_strength(
+    def _export_strength_overview(
         self,
     ):
         """
-        Export global feature-strength heatmaps by source group.
+        Export global Feature Strength page.
     
-        Creates:
-            strength_by_group.html
+        Always generated.
     
-        Contains:
-            - IV heatmap
-            - KS heatmap
-            - maximum lift heatmap
-            - detailed metrics table
+        Without source_column:
+            - global IV ranking
+            - global KS ranking
+            - global max lift ranking
+    
+        With source_column:
+            - global rankings
+            - IV heatmap by source
+            - KS heatmap by source
+            - lift heatmap by source
         """
     
-        if self.source_column is None:
-            return pd.DataFrame()
+        from .plots.strength_overview import (
+            plot_global_strength,
+        )
     
-        if (
-            self.source_column
-            not in self.dataset.df.columns
+        global_records = []
+    
+        for feature_name in (
+            self.dataset.feature_columns
         ):
-            return pd.DataFrame()
     
-        try:
+            try:
     
-            table = (
-                self.eda.strength_by_group(
-                    group=self.source_column,
-                    n_bins=self.n_bins,
+                feature = self.eda.feature(
+                    feature_name
+                )
+    
+                strength = feature.strength(
+                    n_bins=self.n_bins
+                )
+    
+                metrics = (
+                    strength.metrics.to_dict()
+                )
+    
+                metrics["feature"] = (
+                    feature_name
+                )
+    
+                global_records.append(
+                    metrics
+                )
+    
+            except Exception as error:
+    
+                self._register_error(
+                    feature_name,
+                    "strength_overview",
+                    error,
+                )
+    
+        global_table = pd.DataFrame(
+            global_records
+        )
+    
+        if global_table.empty:
+            return global_table
+    
+        sections = []
+    
+        # =================================================
+        # Global rankings
+        # =================================================
+    
+        metric_configurations = [
+            (
+                "iv",
+                "Information Value global",
+            ),
+            (
+                "max_ks",
+                "KS máximo global",
+            ),
+            (
+                "max_lift",
+                "Lift máximo global",
+            ),
+        ]
+    
+        for metric, title in (
+            metric_configurations
+        ):
+    
+            if metric not in global_table.columns:
+                continue
+    
+            fig = plot_global_strength(
+                table=global_table,
+                metric=metric,
+            )
+    
+            fig.update_layout(
+                title=title
+            )
+    
+            sections.append(
+                self._plot_section(
+                    title,
+                    fig,
                 )
             )
     
-            if table.empty:
-                return table
+        # =================================================
+        # Global table
+        # =================================================
     
-            metric_configurations = [
-                (
-                    "iv",
-                    "Information Value por grupo",
-                ),
-                (
-                    "max_ks",
-                    "KS máximo por grupo",
-                ),
-                (
-                    "max_lift",
-                    "Lift máximo por grupo",
-                ),
+        global_display_columns = [
+            "feature",
+            "iv",
+            "max_ks",
+            "max_lift",
+            "global_target_rate",
+            "observations",
+            "events",
+        ]
+    
+        global_display_columns = [
+            column
+            for column
+            in global_display_columns
+            if column in global_table.columns
+        ]
+    
+        global_display = (
+            global_table[
+                global_display_columns
             ]
+            .sort_values(
+                "iv",
+                ascending=False,
+                na_position="last",
+            )
+            .reset_index(drop=True)
+        )
     
-            sections = []
+        sections.append(
+            self._table_section(
+                "Global feature strength",
+                global_display,
+            )
+        )
     
-            for metric, title in (
-                metric_configurations
-            ):
+        # =================================================
+        # Source/group analysis
+        # =================================================
     
-                if metric not in table.columns:
-                    continue
+        group_table = pd.DataFrame()
     
-                figure = (
+        if (
+            self.source_column is not None
+            and self.source_column
+            in self.dataset.df.columns
+        ):
+    
+            try:
+    
+                group_table = (
                     self.eda
-                    .plot_strength_by_group(
-                        group=self.source_column,
-                        metric=metric,
+                    .strength_by_group(
+                        group=(
+                            self.source_column
+                        ),
                         n_bins=self.n_bins,
                     )
                 )
     
-                figure.update_layout(
-                    title=title
-                )
+                if not group_table.empty:
     
-                sections.append(
-                    self._plot_section(
-                        title,
-                        figure,
-                    )
-                )
+                    for metric, title in [
+                        (
+                            "iv",
+                            (
+                                "Information Value "
+                                f"por {self.source_column}"
+                            ),
+                        ),
+                        (
+                            "max_ks",
+                            (
+                                "KS máximo por "
+                                f"{self.source_column}"
+                            ),
+                        ),
+                        (
+                            "max_lift",
+                            (
+                                "Lift máximo por "
+                                f"{self.source_column}"
+                            ),
+                        ),
+                    ]:
     
-            display_columns = [
-                "feature",
-                "group_value",
-                "iv",
-                "max_ks",
-                "max_lift",
-                "global_target_rate",
-                "observations",
-                "events",
-            ]
+                        if (
+                            metric
+                            not in group_table.columns
+                        ):
+                            continue
     
-            display_columns = [
-                column
-                for column in display_columns
-                if column in table.columns
-            ]
+                        figure = (
+                            self.eda
+                            .plot_strength_by_group(
+                                group=(
+                                    self.source_column
+                                ),
+                                metric=metric,
+                                n_bins=self.n_bins,
+                            )
+                        )
     
-            display_table = (
-                table[
-                    display_columns
-                ]
-                .sort_values(
-                    [
+                        figure.update_layout(
+                            title=title
+                        )
+    
+                        sections.append(
+                            self._plot_section(
+                                title,
+                                figure,
+                            )
+                        )
+    
+                    group_display_columns = [
                         "feature",
                         "group_value",
-                    ],
-                    kind="stable",
-                )
-                .reset_index(drop=True)
-            )
+                        "iv",
+                        "max_ks",
+                        "max_lift",
+                        "global_target_rate",
+                        "observations",
+                        "events",
+                    ]
     
-            sections.append(
-                self._table_section(
-                    "Métricas por feature e grupo",
-                    display_table,
-                )
-            )
+                    group_display_columns = [
+                        column
+                        for column
+                        in group_display_columns
+                        if column
+                        in group_table.columns
+                    ]
     
-            body = f"""
-            <div class="navigation">
-                <a href="index.html">
-                    ← Voltar ao índice
-                </a>
-            </div>
-    
-            <h1>
-                Feature strength por
-                {html.escape(self.source_column)}
-            </h1>
-    
-            <p>
-                Comparação do poder preditivo global e por
-                {html.escape(self.source_column)}.
-                Uma feature pode ter baixo IV global e ainda
-                ser relevante para uma tarefa específica.
-            </p>
-    
-            {
-                ''.join(
-                    self._wrap_section(
-                        section,
-                        index,
+                    sections.append(
+                        self._table_section(
+                            (
+                                "Feature strength "
+                                f"por {self.source_column}"
+                            ),
+                            group_table[
+                                group_display_columns
+                            ],
+                        )
                     )
-                    for index, section
-                    in enumerate(sections)
+    
+            except Exception as error:
+    
+                self._register_error(
+                    "__global__",
+                    "strength_by_group",
+                    error,
                 )
-            }
-            """
     
-            page = self._simple_page(
-                title=(
-                    "Feature strength por grupo"
-                ),
-                body=body,
+        # =================================================
+        # HTML
+        # =================================================
+    
+        body = f"""
+        <div class="navigation">
+            <a href="index.html">
+                ← Voltar ao índice
+            </a>
+        </div>
+    
+        <h1>Feature Strength</h1>
+    
+        <p>
+            Ranking global do poder preditivo
+            das features através de IV, KS e Lift.
+        </p>
+    
+        {
+            ''.join(
+                self._wrap_section(
+                    section,
+                    index,
+                )
+                for index, section
+                in enumerate(sections)
             )
+        }
+        """
     
-            output_path = (
-                self.output_folder
-                / "strength_by_group.html"
-            )
+        page = self._simple_page(
+            title="Feature Strength",
+            body=body,
+        )
     
-            output_path.write_text(
-                page,
-                encoding="utf-8",
-            )
+        (
+            self.output_folder
+            / "strength.html"
+        ).write_text(
+            page,
+            encoding="utf-8",
+        )
     
-            return table
-    
-        except Exception as error:
-    
-            self._register_error(
-                "__global__",
-                "strength_by_group",
-                error,
-            )
-    
-            return pd.DataFrame()
+        return {
+            "global": global_table,
+            "group": group_table,
+        }
     
     
     # =====================================================
@@ -1040,14 +1177,44 @@ class EDAReport:
                 )
 
             if (
-                self.group_strength is not None
-                and not self.group_strength.empty
+                self.strength_overview is not None
             ):
-                self.group_strength.to_excel(
-                    writer,
-                    sheet_name="Strength by group",
-                    index=False,
+            
+                global_strength = (
+                    self.strength_overview.get(
+                        "global"
+                    )
                 )
+            
+                group_strength = (
+                    self.strength_overview.get(
+                        "group"
+                    )
+                )
+            
+                if (
+                    global_strength is not None
+                    and not global_strength.empty
+                ):
+                    global_strength.to_excel(
+                        writer,
+                        sheet_name=(
+                            "Strength Global"
+                        ),
+                        index=False,
+                    )
+            
+                if (
+                    group_strength is not None
+                    and not group_strength.empty
+                ):
+                    group_strength.to_excel(
+                        writer,
+                        sheet_name=(
+                            "Strength by group"
+                        ),
+                        index=False,
+                    )
             
             if (
                 self.stability is not None
@@ -1164,23 +1331,11 @@ class EDAReport:
                 """
             )
     
-        strength_link = ""
-    
-        if (
-            self.group_strength is not None
-            and not self.group_strength.empty
-        ):
-            group_name = (
-                self.source_column
-                or "grupo"
-            )
-    
-            strength_link = (
-                '<a href="strength_by_group.html">'
-                f"Strength por "
-                f"{html.escape(str(group_name))}"
-                "</a>"
-            )
+        strength_link = (
+            '<a href="strength.html">'
+            'Feature Strength'
+            '</a>'
+        )
     
         body = f"""
         <h1>EDA Report</h1>
