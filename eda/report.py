@@ -879,7 +879,10 @@ class EDAReport:
         )
     
         if global_table.empty:
-            return global_table
+            return {
+                "global": pd.DataFrame(),
+                "group": pd.DataFrame(),
+            }
     
         sections = []
     
