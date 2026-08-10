@@ -550,6 +550,10 @@ class ModelingPreprocessor:
             self.all_features
         ].copy()
 
+        
+        for feature in self.categorical_features:
+            X[feature] = X[feature].astype(str)
+
         if X.isna().any().any():
 
             columns_with_missing = (
