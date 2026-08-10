@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 def create_features(df):
     """
     Project-specific feature engineering.
