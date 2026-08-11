@@ -8,6 +8,8 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+import plotly.graph_objects as go
+
 
 class ModelEvaluation:
     """
@@ -93,6 +95,153 @@ class ModelEvaluation:
             .reset_index(drop=True)
         )
 
+
+def plot_lift(
+    self,
+):
+    """
+    Compare lift by decile across samples.
+    """
+
+    fig = go.Figure()
+
+    for (
+        sample_name,
+        data,
+    ) in self.deciles.groupby(
+        "sample",
+        sort=False,
+    ):
+
+        fig.add_trace(
+            go.Scatter(
+                x=data["decile"],
+                y=data["lift"],
+                mode="lines+markers",
+                name=str(sample_name),
+            )
+        )
+
+    fig.add_hline(
+        y=1,
+        line_dash="dash",
+    )
+
+    fig.update_layout(
+        title="Lift by decile",
+        template="plotly_white",
+        height=500,
+        xaxis={
+            "title": "Decile",
+            "dtick": 1,
+            "autorange": "reversed",
+        },
+        yaxis={
+            "title": "Lift",
+            "rangemode": "tozero",
+        },
+    )
+
+    return fig
+
+
+def plot_target_rate(
+    self,
+):
+    """
+    Compare observed target rate by decile.
+    """
+
+    fig = go.Figure()
+
+    for (
+        sample_name,
+        data,
+    ) in self.deciles.groupby(
+        "sample",
+        sort=False,
+    ):
+
+        fig.add_trace(
+            go.Scatter(
+                x=data["decile"],
+                y=data[
+                    "target_rate"
+                ],
+                mode="lines+markers",
+                name=str(sample_name),
+            )
+        )
+
+    fig.update_layout(
+        title=(
+            "Observed target rate "
+            "by decile"
+        ),
+        template="plotly_white",
+        height=500,
+        xaxis={
+            "title": "Decile",
+            "dtick": 1,
+            "autorange": "reversed",
+        },
+        yaxis={
+            "title": "Target rate",
+            "tickformat": ".2%",
+            "rangemode": "tozero",
+        },
+    )
+
+    return fig
+
+
+    def plot_cumulative_lift(
+        self,
+    ):
+        fig = go.Figure()
+    
+        for (
+            sample_name,
+            data,
+        ) in self.deciles.groupby(
+            "sample",
+            sort=False,
+        ):
+    
+            fig.add_trace(
+                go.Scatter(
+                    x=data[
+                        "cumulative_population_pct"
+                    ],
+                    y=data[
+                        "cumulative_lift"
+                    ],
+                    mode="lines+markers",
+                    name=str(sample_name),
+                )
+            )
+    
+        fig.add_hline(
+            y=1,
+            line_dash="dash",
+        )
+    
+        fig.update_layout(
+            title="Cumulative lift",
+            template="plotly_white",
+            height=500,
+            xaxis={
+                "title": (
+                    "Cumulative population"
+                ),
+                "tickformat": ".0%",
+            },
+            yaxis={
+                "title": "Cumulative lift",
+            },
+        )
+    
+        return fig
     # =====================================================
     # Calculation
     # =====================================================
