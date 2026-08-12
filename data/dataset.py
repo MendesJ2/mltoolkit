@@ -241,23 +241,35 @@ class Dataset(BaseComponent):
             return self.config.variable_types[column]
     
     
-        # Datetime real
-        if pd.api.types.is_datetime64_any_dtype(series):
-    
+        # Datetime
+        if pd.api.types.is_datetime64_any_dtype(
+            series
+        ):
             return "datetime"
     
     
-        # Binária
-        if series.nunique(dropna=True) == 2:
+        # Numeric
+        if pd.api.types.is_numeric_dtype(
+            series
+        ):
     
-            return "binary"
+            unique_values = set(
+                series
+                .dropna()
+                .unique()
+            )
     
-    
-        # Numéricas
-        if pd.api.types.is_numeric_dtype(series):
+            # Binary only if numeric 0/1
+            if (
+                len(unique_values) <= 2
+                and unique_values.issubset(
+                    {0, 1}
+                )
+            ):
+                return "binary"
     
             return "continuous"
     
     
-        # Texto / categorias
+        # Text / categories
         return "categorical"
