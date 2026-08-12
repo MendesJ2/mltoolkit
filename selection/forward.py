@@ -9,9 +9,11 @@ import statsmodels.api as sm
 from numpy.linalg import LinAlgError
 from sklearn.metrics import roc_auc_score
 from statsmodels.tools.sm_exceptions import (
+    ConvergenceWarning,
     PerfectSeparationError,
 )
 
+import warnings
 
 class ForwardSelector:
     """
@@ -608,7 +610,6 @@ class ForwardSelector:
     # =====================================================
     # Candidate evaluation
     # =====================================================
-
     def _evaluate_candidate(
         self,
         feature,
@@ -619,47 +620,85 @@ class ForwardSelector:
         y_valid,
     ):
         try:
-
+    
             train_matrix = sm.add_constant(
                 X_train[features],
                 has_constant="add",
             )
-
+    
             valid_matrix = sm.add_constant(
                 X_valid[features],
                 has_constant="add",
             )
-
+    
             valid_matrix = valid_matrix[
                 train_matrix.columns
             ]
-
-            model = sm.Logit(
-                y_train,
-                train_matrix,
-            ).fit(
-                disp=0,
-                maxiter=200,
+    
+    
+            with warnings.catch_warnings(
+                record=True
+            ) as captured_warnings:
+    
+                warnings.simplefilter(
+                    "always",
+                    ConvergenceWarning,
+                )
+    
+                model = sm.Logit(
+                    y_train,
+                    train_matrix,
+                ).fit(
+                    disp=0,
+                    maxiter=200,
+                )
+    
+    
+            convergence_warning = any(
+                issubclass(
+                    warning.category,
+                    ConvergenceWarning,
+                )
+                for warning
+                in captured_warnings
             )
-
-            train_probability = model.predict(
-                train_matrix
+    
+            converged = bool(
+                model.mle_retvals.get(
+                    "converged",
+                    not convergence_warning,
+                )
             )
-
-            valid_probability = model.predict(
-                valid_matrix
+    
+            if (
+                convergence_warning
+                or not converged
+            ):
+                return None
+    
+    
+            train_probability = (
+                model.predict(
+                    train_matrix
+                )
             )
-
+    
+            valid_probability = (
+                model.predict(
+                    valid_matrix
+                )
+            )
+    
             train_gini = self._gini(
                 y_train,
                 train_probability,
             )
-
+    
             validation_gini = self._gini(
                 y_valid,
                 valid_probability,
             )
-
+    
             return {
                 "feature": feature,
                 "p_value": float(
@@ -672,7 +711,7 @@ class ForwardSelector:
                 "aic": model.aic,
                 "bic": model.bic,
             }
-
+    
         except (
             PerfectSeparationError,
             LinAlgError,
