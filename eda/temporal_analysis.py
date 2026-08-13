@@ -1,4 +1,5 @@
 from mltoolkit.eda.plots.temporal import (
+    plot_binary_feature_temporal,
     plot_categorical_feature_temporal,
     plot_continuous_feature_temporal,
     plot_target_temporal,
@@ -65,6 +66,24 @@ class TemporalAnalysis:
                 )
             )
 
+        if (
+            self.analysis_type
+            == "binary"
+        ):
+        
+            return (
+                plot_binary_feature_temporal(
+                    table=self.feature_table,
+                    feature_name=(
+                        self.feature_name
+                    ),
+                    target_name=(
+                        self.target_name
+                    ),
+                    group=self.group,
+                )
+            )
+        
         return (
             plot_categorical_feature_temporal(
                 table=self.feature_table,
