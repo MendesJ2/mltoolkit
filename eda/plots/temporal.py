@@ -339,3 +339,103 @@ def plot_volume_temporal(
     )
 
     return fig
+
+def plot_binary_feature_temporal(
+    table,
+    feature_name,
+    target_name,
+    group=None,
+):
+    """
+    Temporal evolution of the binary rate
+    by target and optionally group.
+
+    binary_rate represents the proportion
+    of observations where feature == 1.
+    """
+
+    fig = go.Figure()
+
+    grouping_columns = [
+        target_name
+    ]
+
+    if group is not None:
+        grouping_columns.insert(
+            0,
+            group,
+        )
+
+    for keys, data in table.groupby(
+        grouping_columns,
+        dropna=False,
+        sort=False,
+    ):
+
+        if not isinstance(
+            keys,
+            tuple,
+        ):
+            keys = (
+                keys,
+            )
+
+        if group is None:
+
+            target_value = keys[0]
+
+            label = (
+                f"Target={target_value}"
+            )
+
+        else:
+
+            (
+                group_value,
+                target_value,
+            ) = keys
+
+            label = (
+                f"{group_value} | "
+                f"Target={target_value}"
+            )
+
+        data = data.sort_values(
+            "period"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=data["period"],
+                y=data["binary_rate"],
+                mode="lines+markers",
+                name=label,
+                customdata=data[
+                    ["observations"]
+                ],
+                hovertemplate=(
+                    "Período: %{x}"
+                    "<br>Rate: %{y:.2%}"
+                    "<br>Observações: "
+                    "%{customdata[0]:,.0f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        title=(
+            f"{feature_name} temporal "
+            "por target"
+        ),
+        template="plotly_white",
+        height=550,
+        xaxis_title="Período",
+        yaxis_title=(
+            f"% {feature_name}=1"
+        ),
+        yaxis_tickformat=".1%",
+        hovermode="x unified",
+    )
+
+    return fig
