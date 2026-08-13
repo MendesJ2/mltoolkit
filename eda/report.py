@@ -1057,16 +1057,13 @@ class EDAReport:
                             title=title
                         )
     
-                        sections.append(
-                            self._plot_section(
-                                title,
-                                figure,
-                            )
+                        section = self._plot_section(
+                            title,
+                            figure,
                         )
+                        
                         if metric == "iv":
                         
-                            # IV by group is the main strength
-                            # overview and should appear first.
                             sections.insert(
                                 0,
                                 section,
@@ -1076,7 +1073,7 @@ class EDAReport:
                         
                             sections.append(
                                 section
-                            )
+                            )                        
     
                     group_display_columns = [
                         "feature",
