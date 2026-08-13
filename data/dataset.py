@@ -24,6 +24,8 @@ class Dataset(BaseComponent):
 
         self.df = dataframe.copy()
 
+        self._strip_string_values()
+
         self.metadata = Metadata()
 
         self._build_metadata()
@@ -119,6 +121,46 @@ class Dataset(BaseComponent):
     # Metadata
     # =====================================================
 
+    def _strip_string_values(
+        self,
+    ):
+        """
+        Remove leading/trailing whitespace from
+        string values.
+    
+        raw_df remains unchanged.
+        """
+    
+        for column in self.df.columns:
+    
+            series = self.df[column]
+    
+            if (
+                pd.api.types.is_object_dtype(
+                    series
+                )
+                or pd.api.types.is_string_dtype(
+                    series
+                )
+                or isinstance(
+                    series.dtype,
+                    pd.CategoricalDtype,
+                )
+            ):
+    
+                self.df[column] = (
+                    series.map(
+                        lambda value: (
+                            value.strip()
+                            if isinstance(
+                                value,
+                                str,
+                            )
+                            else value
+                        )
+                    )
+                )
+    
     def _build_metadata(self):
 
         for column in self.df.columns:
