@@ -121,4 +121,8 @@ def plot_group_strength_heatmap(
         yaxis_title="Feature",
     )
 
+    figure.update_xaxes(
+        side="top",
+    )
+
     return figure
