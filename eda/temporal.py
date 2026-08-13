@@ -19,8 +19,11 @@ def temporal_analysis(
     Continuous:
         mean and median by target.
 
-    Categorical/binary:
+    Categorical:
         category share by target.
+    
+    Binary:
+        proportion of feature == 1 by target.
 
     Special values are excluded from continuous averages.
     """
