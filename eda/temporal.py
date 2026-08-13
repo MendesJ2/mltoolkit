@@ -88,7 +88,7 @@ def temporal_analysis(
     )
 
     if variable_type == "continuous":
-
+    
         feature_data = data[
             ~data[feature].isin(
                 special_values
@@ -98,16 +98,20 @@ def temporal_analysis(
                 feature
             ]
         )
-
+    
         feature_grouping = [
             "period"
         ]
-
+    
         if group is not None:
-            feature_grouping.append(group)
-
-        feature_grouping.append(target)
-
+            feature_grouping.append(
+                group
+            )
+    
+        feature_grouping.append(
+            target
+        )
+    
         feature_summary = (
             feature_data
             .groupby(
@@ -130,11 +134,49 @@ def temporal_analysis(
             )
             .reset_index()
         )
-
+    
         analysis_type = "continuous"
-
+    
+    
+    elif variable_type == "binary":
+    
+        feature_grouping = [
+            "period"
+        ]
+    
+        if group is not None:
+            feature_grouping.append(
+                group
+            )
+    
+        feature_grouping.append(
+            target
+        )
+    
+        feature_summary = (
+            data
+            .groupby(
+                feature_grouping,
+                dropna=False,
+            )
+            .agg(
+                binary_rate=(
+                    feature,
+                    "mean",
+                ),
+                observations=(
+                    feature,
+                    "count",
+                ),
+            )
+            .reset_index()
+        )
+    
+        analysis_type = "binary"
+    
+    
     else:
-
+    
         data["_category"] = (
             data[feature]
             .astype("object")
@@ -144,21 +186,23 @@ def temporal_analysis(
             )
             .astype(str)
         )
-
+    
         feature_grouping = [
             "period"
         ]
-
+    
         if group is not None:
-            feature_grouping.append(group)
-
+            feature_grouping.append(
+                group
+            )
+    
         feature_grouping.extend(
             [
                 target,
                 "_category",
             ]
         )
-
+    
         feature_summary = (
             data
             .groupby(
@@ -170,16 +214,20 @@ def temporal_analysis(
                 name="observations"
             )
         )
-
+    
         share_grouping = [
             "period"
         ]
-
+    
         if group is not None:
-            share_grouping.append(group)
-
-        share_grouping.append(target)
-
+            share_grouping.append(
+                group
+            )
+    
+        share_grouping.append(
+            target
+        )
+    
         feature_summary[
             "category_share"
         ] = (
@@ -191,7 +239,7 @@ def temporal_analysis(
             )["observations"]
             .transform("sum")
         )
-
+    
         feature_summary = (
             feature_summary.rename(
                 columns={
@@ -199,7 +247,7 @@ def temporal_analysis(
                 }
             )
         )
-
+    
         analysis_type = "categorical"
 
     return {
