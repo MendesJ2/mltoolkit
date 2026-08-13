@@ -145,6 +145,24 @@ class EDAReport:
             overview_records
         )
 
+        if (
+            not self.overview.empty
+            and "iv"
+            in self.overview.columns
+        ):
+        
+            self.overview = (
+                self.overview
+                .sort_values(
+                    "iv",
+                    ascending=False,
+                    na_position="last",
+                )
+                .reset_index(
+                    drop=True
+                )
+            )
+
         self.strength = pd.DataFrame(
             strength_records
         )
@@ -1045,6 +1063,20 @@ class EDAReport:
                                 figure,
                             )
                         )
+                        if metric == "iv":
+                        
+                            # IV by group is the main strength
+                            # overview and should appear first.
+                            sections.insert(
+                                0,
+                                section,
+                            )
+                        
+                        else:
+                        
+                            sections.append(
+                                section
+                            )
     
                     group_display_columns = [
                         "feature",
