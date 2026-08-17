@@ -1594,6 +1594,7 @@ class EDAReport:
                 classes="dataframe",
                 na_rep="",
             ),
+            "collapsed": True,
         }
 
     def _plot_section(
@@ -1606,6 +1607,7 @@ class EDAReport:
             "content": self._plot_html(
                 figure
             ),
+            "collapsed": False,
         }
 
     def _safe_table_section(
@@ -1668,6 +1670,7 @@ class EDAReport:
                 f"{html.escape(str(error))}"
                 "</div>"
             ),
+            "collapsed": False,
         }
 
     @staticmethod
@@ -1689,10 +1692,26 @@ class EDAReport:
         section,
         index,
     ):
+        open_attribute = (
+            ""
+            if section.get(
+                "collapsed",
+                False,
+            )
+            else " open"
+        )
+    
         return f"""
         <section id="section-{index}">
-            <h2>{html.escape(section['title'])}</h2>
-            {section['content']}
+            <details{open_attribute}>
+                <summary>
+                    {html.escape(section['title'])}
+                </summary>
+    
+                <div class="section-content">
+                    {section['content']}
+                </div>
+            </details>
         </section>
         """
 
@@ -1886,19 +1905,41 @@ class EDAReport:
             background: #fafafa;
         }
 
+        details {
+            width: 100%;
+        }
+        
+        summary {
+            cursor: pointer;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            padding: 4px 0;
+            user-select: none;
+        }
+        
+        summary:hover {
+            color: #2563eb;
+        }
+        
+        details[open] summary {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 18px;
+        }
+        
+        .section-content {
+            margin-top: 14px;
+        }
+
         h1, h2 {
             color: #1f2937;
         }
 
-        h2 {
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 8px;
-        }
-
         section {
             background: white;
-            margin: 24px 0;
-            padding: 22px;
+            margin: 16px 0;
+            padding: 18px 22px;
             border-radius: 8px;
             box-shadow: 0 1px 4px rgba(0,0,0,.08);
         }
