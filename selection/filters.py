@@ -42,6 +42,9 @@ class FeatureFilter:
         max_categories: int | None = None,
         min_iv: float | None = None,
         iv_n_bins: int = 10,
+        min_relevant_lift: float | None = None,
+        lift_min_population_pct: float = 0.05,
+        lift_group: str | None = None,
         max_psi: float | None = None,
         stability_by: str | None = None,
         stability_reference=None,
@@ -62,6 +65,16 @@ class FeatureFilter:
 
         self.min_iv = min_iv
         self.iv_n_bins = iv_n_bins
+
+        self.min_relevant_lift = (
+            min_relevant_lift
+        )
+        
+        self.lift_min_population_pct = (
+            lift_min_population_pct
+        )
+        
+        self.lift_group = lift_group        
 
         self.max_psi = max_psi
         self.stability_by = stability_by
@@ -106,7 +119,7 @@ class FeatureFilter:
             report
         )
 
-        report = self._apply_iv_filter(
+        report = self._apply_strength_filter(
             report
         )
 
@@ -269,9 +282,17 @@ class FeatureFilter:
                         else False
                     ),
                     "iv": np.nan,
+
+                    "max_relevant_lift": np.nan,
+                    "relevant_lift_population_pct": np.nan,
+                    "relevant_lift_group": None,
+                    "relevant_lift_scope": None,
+                    
                     "max_psi": np.nan,
+                    
                     "correlated_with": None,
                     "correlation": np.nan,
+                    
                     "reasons": [],
                 }
             )
@@ -338,90 +359,238 @@ class FeatureFilter:
     # IV filter
     # =====================================================
 
-    def _apply_iv_filter(
+    def _apply_strength_filter(
         self,
         report,
     ):
-        if self.min_iv is None:
+        """
+        Filter features using predictive strength.
+    
+        A feature is kept when:
+            - IV is above min_iv;
+            OR
+            - relevant lift is above min_relevant_lift.
+    
+        Relevant lift only considers bins with at least
+        lift_min_population_pct of the corresponding population.
+        """
+    
+        if (
+            self.min_iv is None
+            and self.min_relevant_lift is None
+        ):
             return report
-
-        target = self.dataset.config.target
-
-        for index, row in report.iterrows():
-
+    
+        target = (
+            self.dataset.config.target
+        )
+    
+        for index, row in (
+            report.iterrows()
+        ):
+    
             if row["reasons"]:
                 continue
-
-            feature_name = row[
-                "feature"
-            ]
-
+    
+            feature_name = (
+                row["feature"]
+            )
+    
             try:
-
+    
                 result = feature_strength(
                     df=self.dataset.df,
                     feature=feature_name,
                     target=target,
-                    variable_type=row[
-                        "variable_type"
-                    ],
+                    variable_type=(
+                        row["variable_type"]
+                    ),
                     n_bins=self.iv_n_bins,
+                    group=self.lift_group,
+                    special_values=getattr(
+                        self.dataset.config,
+                        "special_values",
+                        None,
+                    ),
+                    min_lift_population_pct=(
+                        self.lift_min_population_pct
+                    ),
                 )
-
-                iv = float(
-                    result["metrics"]["iv"]
+    
+                # =========================================
+                # Global IV
+                # =========================================
+    
+                global_metrics = (
+                    result["metrics"]
                 )
-
+    
+                iv = global_metrics["iv"]
+    
                 report.at[
                     index,
                     "iv",
                 ] = iv
-
-                if iv < self.min_iv:
-
+    
+                # =========================================
+                # Best relevant lift
+                # =========================================
+    
+                strength_metrics = (
+                    result["group_metrics"]
+                )
+    
+                valid_lift_rows = (
+                    strength_metrics[
+                        strength_metrics[
+                            "max_relevant_lift"
+                        ].notna()
+                    ]
+                )
+    
+                if valid_lift_rows.empty:
+    
+                    best_lift = np.nan
+    
+                else:
+    
+                    best_index = (
+                        valid_lift_rows[
+                            "max_relevant_lift"
+                        ]
+                        .idxmax()
+                    )
+    
+                    best_row = (
+                        valid_lift_rows.loc[
+                            best_index
+                        ]
+                    )
+    
+                    best_lift = (
+                        best_row[
+                            "max_relevant_lift"
+                        ]
+                    )
+    
+                    report.at[
+                        index,
+                        "max_relevant_lift",
+                    ] = best_lift
+    
+                    report.at[
+                        index,
+                        "relevant_lift_population_pct",
+                    ] = (
+                        best_row[
+                            "relevant_lift_population_pct"
+                        ]
+                    )
+    
+                    report.at[
+                        index,
+                        "relevant_lift_group",
+                    ] = (
+                        best_row[
+                            "relevant_lift_group"
+                        ]
+                    )
+    
+                    report.at[
+                        index,
+                        "relevant_lift_scope",
+                    ] = (
+                        best_row[
+                            "group_value"
+                        ]
+                    )
+    
+                # =========================================
+                # Decision
+                # =========================================
+    
+                iv_ok = (
+                    self.min_iv is not None
+                    and pd.notna(iv)
+                    and iv >= self.min_iv
+                )
+    
+                lift_ok = (
+                    self.min_relevant_lift
+                    is not None
+                    and pd.notna(best_lift)
+                    and best_lift
+                    >= self.min_relevant_lift
+                )
+    
+                # If both criteria are configured,
+                # either one is sufficient.
+                if (
+                    self.min_iv is not None
+                    and self.min_relevant_lift
+                    is not None
+                ):
+    
+                    keep_strength = (
+                        iv_ok
+                        or lift_ok
+                    )
+    
+                # IV only
+                elif self.min_iv is not None:
+    
+                    keep_strength = iv_ok
+    
+                # Lift only
+                else:
+    
+                    keep_strength = lift_ok
+    
+                if not keep_strength:
+    
                     reasons = list(
                         report.at[
                             index,
                             "reasons",
                         ]
                     )
-
+    
                     reasons.append(
-                        "iv_below_threshold"
+                        "predictive_strength_below_threshold"
                     )
-
+    
                     report.at[
                         index,
                         "reasons",
                     ] = reasons
-
+    
             except (
                 ValueError,
                 TypeError,
                 KeyError,
             ) as error:
-
+    
                 reasons = list(
                     report.at[
                         index,
                         "reasons",
                     ]
                 )
-
+    
                 reasons.append(
-                    "iv_calculation_failed"
+                    "strength_calculation_failed"
                 )
-
+    
                 report.at[
                     index,
                     "reasons",
                 ] = reasons
-
+    
                 report.at[
                     index,
-                    "iv_error",
+                    "strength_error",
                 ] = str(error)
-
+    
         return report
 
     # =====================================================
@@ -800,6 +969,25 @@ class FeatureFilter:
             raise ValueError(
                 "correlation_method must be "
                 "'pearson' or 'spearman'."
+            )
+        
+        if (
+            self.min_relevant_lift
+            is not None
+            and self.min_relevant_lift <= 0
+        ):
+            raise ValueError(
+                "min_relevant_lift must be > 0."
+            )
+        
+        if not (
+            0
+            < self.lift_min_population_pct
+            <= 1
+        ):
+            raise ValueError(
+                "lift_min_population_pct must "
+                "be between 0 and 1."
             )
 
     def _check_is_fitted(self):
