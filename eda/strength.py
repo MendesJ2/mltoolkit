@@ -248,41 +248,62 @@ def _build_strength_metrics(
         # ---------------------------------------------
         # Relevant lift
         # ---------------------------------------------
-
+        
         relevant_bins = segment[
             segment["population_pct"]
             >= min_lift_population_pct
         ].copy()
-
+        
         if relevant_bins.empty:
-
-            max_relevant_lift = np.nan
+        
+            relevant_lift = np.nan
+            relevant_lift_deviation = np.nan
             relevant_lift_population_pct = np.nan
             relevant_lift_group = None
-
+        
         else:
-
+        
+            # Distance from neutral lift = 1.
+            #
+            # This captures both:
+            #   lift > 1  -> positive signal
+            #   lift < 1  -> negative signal
+        
+            relevant_bins[
+                "_lift_deviation"
+            ] = (
+                relevant_bins["lift"] - 1
+            ).abs()
+        
             best_lift_index = (
-                relevant_bins["lift"]
+                relevant_bins[
+                    "_lift_deviation"
+                ]
                 .idxmax()
             )
-
+        
             best_lift_row = (
                 relevant_bins.loc[
                     best_lift_index
                 ]
             )
-
-            max_relevant_lift = (
+        
+            relevant_lift = (
                 best_lift_row["lift"]
             )
-
+        
+            relevant_lift_deviation = (
+                best_lift_row[
+                    "_lift_deviation"
+                ]
+            )
+        
             relevant_lift_population_pct = (
                 best_lift_row[
                     "population_pct"
                 ]
             )
-
+        
             relevant_lift_group = (
                 best_lift_row[
                     "feature_group"
@@ -309,14 +330,18 @@ def _build_strength_metrics(
                     "lift"
                 ].max(),
 
-                "max_relevant_lift": (
-                    max_relevant_lift
+                "relevant_lift": (
+                    relevant_lift
                 ),
-
+                
+                "relevant_lift_deviation": (
+                    relevant_lift_deviation
+                ),
+                
                 "relevant_lift_population_pct": (
                     relevant_lift_population_pct
                 ),
-
+                
                 "relevant_lift_group": (
                     relevant_lift_group
                 ),
