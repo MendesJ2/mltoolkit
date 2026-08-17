@@ -33,6 +33,10 @@ from .plots.group_strength import (
     plot_group_strength_heatmap,
 )
 
+from .relevant_bins import (
+    relevant_bins_analysis,
+)
+
 class EDAAnalyzer(BaseComponent):
     """
     Main entry point for exploratory data analysis.
@@ -285,4 +289,31 @@ class EDAAnalyzer(BaseComponent):
         return plot_group_strength_heatmap(
             table=table,
             metric=metric,
+        )
+
+    def relevant_bins(
+        self,
+        *,
+        columns=None,
+        group=None,
+        n_bins=10,
+        min_lift_deviation=0.25,
+        min_population_pct=0.05,
+        include_global=True,
+    ):
+    
+        return relevant_bins_analysis(
+            dataset=self.dataset,
+            columns=columns,
+            group=group,
+            n_bins=n_bins,
+            min_lift_deviation=(
+                min_lift_deviation
+            ),
+            min_population_pct=(
+                min_population_pct
+            ),
+            include_global=(
+                include_global
+            ),
         )
