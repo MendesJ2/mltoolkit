@@ -327,6 +327,7 @@ class EDAReport:
                         "feature_group",
                         "observations",
                         "target_rate",
+                        "event_rate_index",
                         "population_pct",
                     ]
                 ]
@@ -335,7 +336,8 @@ class EDAReport:
                         "group_value": (
                             self.source_column
                             or "Population"
-                        )
+                        ),
+                        "event_rate_index": "lift",
                     }
                 )
                 .reset_index(drop=True)
