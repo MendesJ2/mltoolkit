@@ -13,6 +13,7 @@ def feature_strength(
     smoothing=0.5,
     group=None,
     special_values=None,
+    min_lift_population_pct=0.05,
 ):
     """
     Calculate WoE, IV, lift, gain and KS globally
@@ -40,6 +41,9 @@ def feature_strength(
     metrics = _build_strength_metrics(
         table=table,
         feature=feature,
+        min_lift_population_pct=(
+            min_lift_population_pct
+        ),
     )
 
     global_metrics = (
@@ -217,6 +221,7 @@ def _calculate_strength_columns(
 def _build_strength_metrics(
     table,
     feature,
+    min_lift_population_pct=0.05,
 ):
     records = []
 
@@ -231,6 +236,7 @@ def _build_strength_metrics(
         dropna=False,
         sort=False,
     ):
+
         observations = segment[
             "observations"
         ].sum()
@@ -239,34 +245,97 @@ def _build_strength_metrics(
             "events"
         ].sum()
 
+        # ---------------------------------------------
+        # Relevant lift
+        # ---------------------------------------------
+
+        relevant_bins = segment[
+            segment["population_pct"]
+            >= min_lift_population_pct
+        ].copy()
+
+        if relevant_bins.empty:
+
+            max_relevant_lift = np.nan
+            relevant_lift_population_pct = np.nan
+            relevant_lift_group = None
+
+        else:
+
+            best_lift_index = (
+                relevant_bins["lift"]
+                .idxmax()
+            )
+
+            best_lift_row = (
+                relevant_bins.loc[
+                    best_lift_index
+                ]
+            )
+
+            max_relevant_lift = (
+                best_lift_row["lift"]
+            )
+
+            relevant_lift_population_pct = (
+                best_lift_row[
+                    "population_pct"
+                ]
+            )
+
+            relevant_lift_group = (
+                best_lift_row[
+                    "feature_group"
+                ]
+            )
+
         records.append(
             {
                 "feature": feature,
                 "scope": scope,
                 "group_value": group_value,
+
                 "iv": segment[
                     "iv_component"
                 ].sum(
                     min_count=1
                 ),
+
                 "max_ks": segment[
                     "ks"
                 ].max(),
+
                 "max_lift": segment[
                     "lift"
                 ].max(),
+
+                "max_relevant_lift": (
+                    max_relevant_lift
+                ),
+
+                "relevant_lift_population_pct": (
+                    relevant_lift_population_pct
+                ),
+
+                "relevant_lift_group": (
+                    relevant_lift_group
+                ),
+
                 "global_target_rate": (
                     events / observations
                     if observations > 0
                     else np.nan
                 ),
+
                 "n_groups": len(segment),
                 "observations": observations,
                 "events": events,
             }
         )
 
-    return pd.DataFrame(records)
+    return pd.DataFrame(
+        records
+    )
 
 
 def feature_strength_by_group(
@@ -278,6 +347,7 @@ def feature_strength_by_group(
     n_bins=10,
     smoothing=0.5,
     special_values=None,
+    min_lift_population_pct=0.05,
 ):
     """
     Return one metrics row globally and per group.
@@ -292,6 +362,9 @@ def feature_strength_by_group(
         smoothing=smoothing,
         group=group,
         special_values=special_values,
+        min_lift_population_pct=(
+            min_lift_population_pct
+        ),
     )
 
     return result["group_metrics"]
