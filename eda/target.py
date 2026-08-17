@@ -110,10 +110,28 @@ def target_analysis(
                 group,
                 "_feature_group",
             ],
-            global_rate=data[target].mean(),
+            global_rate=None,
             confidence_level=(
                 confidence_level
             ),
+        )
+        
+        group_rates = (
+            data
+            .groupby(
+                group,
+                dropna=False,
+            )[target]
+            .mean()
+        )
+        
+        group_table[
+            "event_rate_index"
+        ] = (
+            group_table["target_rate"]
+            / group_table[group].map(
+                group_rates
+            )
         )
 
         group_table["scope"] = "group"
@@ -212,10 +230,16 @@ def _aggregate_target(
         - result["events"]
     )
 
-    result["event_rate_index"] = (
-        result["target_rate"]
-        / global_rate
-    )
+    if global_rate is not None:
+    
+        result["event_rate_index"] = (
+            result["target_rate"]
+            / global_rate
+        )
+    
+    else:
+    
+        result["event_rate_index"] = np.nan
 
     lower, upper = _wilson_interval(
         events=result["events"],
