@@ -165,8 +165,14 @@ class EDAReport:
             self.overview = (
                 self.overview
                 .sort_values(
-                    "iv",
-                    ascending=False,
+                    [
+                        "max_lift_deviation",
+                        "iv",
+                    ],
+                    ascending=[
+                        False,
+                        False,
+                    ],
                     na_position="last",
                 )
                 .reset_index(
@@ -502,6 +508,11 @@ class EDAReport:
         # -----------------------------------------------
 
         strength_record = None
+        best_lift = np.nan
+        max_lift_deviation = np.nan
+        best_lift_scope = None
+        best_lift_group = None
+        best_lift_population_pct = np.nan
 
         try:
             strength = feature.strength(
@@ -512,6 +523,70 @@ class EDAReport:
             strength_record = (
                 strength.metrics.to_dict()
             )
+            strength_metrics = (
+                strength.group_metrics
+            )
+            
+            valid_lifts = (
+                strength_metrics[
+                    strength_metrics[
+                        "relevant_lift_deviation"
+                    ].notna()
+                ]
+            )
+            
+            if valid_lifts.empty:
+            
+                best_lift = np.nan
+                max_lift_deviation = np.nan
+                best_lift_scope = None
+                best_lift_group = None
+                best_lift_population_pct = np.nan
+            
+            else:
+            
+                best_index = (
+                    valid_lifts[
+                        "relevant_lift_deviation"
+                    ]
+                    .idxmax()
+                )
+            
+                best_row = (
+                    valid_lifts.loc[
+                        best_index
+                    ]
+                )
+            
+                best_lift = (
+                    best_row[
+                        "relevant_lift"
+                    ]
+                )
+            
+                max_lift_deviation = (
+                    best_row[
+                        "relevant_lift_deviation"
+                    ]
+                )
+            
+                best_lift_scope = (
+                    best_row[
+                        "group_value"
+                    ]
+                )
+            
+                best_lift_group = (
+                    best_row[
+                        "relevant_lift_group"
+                    ]
+                )
+            
+                best_lift_population_pct = (
+                    best_row[
+                        "relevant_lift_population_pct"
+                    ]
+                )
 
             strength_record[
                 "feature"
@@ -750,6 +825,19 @@ class EDAReport:
                 if strength_record
                 is not None
                 else np.nan
+            ),
+            "best_lift": best_lift,
+            "max_lift_deviation": (
+                max_lift_deviation
+            ),            
+            "best_lift_scope": (
+                best_lift_scope
+            ),            
+            "best_lift_group": (
+                best_lift_group
+            ),            
+            "best_lift_population_pct": (
+                best_lift_population_pct
             ),
             "max_psi": max_psi,
             "is_constant": (
@@ -1335,15 +1423,7 @@ class EDAReport:
                                 row["missing_pct"]
                             )
                         }
-                    </td>
-    
-                    <td>
-                        {
-                            self._format_number(
-                                row["n_unique"]
-                            )
-                        }
-                    </td>
+                    </td>                
     
                     <td>
                         {
@@ -1353,15 +1433,46 @@ class EDAReport:
                             )
                         }
                     </td>
-    
                     <td>
                         {
                             self._format_number(
-                                row["ks"],
-                                4,
+                                row["best_lift"],
+                                3,
                             )
                         }
                     </td>
+                    
+                    <td>
+                        {
+                            self._format_number(
+                                row["max_lift_deviation"],
+                                3,
+                            )
+                        }
+                    </td>
+                    
+                    <td>
+                        {
+                            html.escape(
+                                str(
+                                    row[
+                                        "best_lift_scope"
+                                    ]
+                                    or ""
+                                )
+                            )
+                        }
+                    </td>
+                    
+                    <td>
+                        {
+                            self._format_percent(
+                                row[
+                                    "best_lift_population_pct"
+                                ]
+                            )
+                        }
+                    </td>                    
     
                     <td>
                         {
@@ -1441,22 +1552,30 @@ class EDAReport:
                     </th>
     
                     <th onclick="sortTable(3)">
-                        Unique
-                    </th>
-    
-                    <th onclick="sortTable(4)">
                         IV
                     </th>
-    
+
+                    <th onclick="sortTable(4)">
+                        Best Lift
+                    </th>
+                    
                     <th onclick="sortTable(5)">
-                        KS
+                        Lift Dev.
+                    </th>
+                    
+                    <th onclick="sortTable(6)">
+                        Scope
+                    </th>
+                    
+                    <th onclick="sortTable(7)">
+                        Population
                     </th>
     
-                    <th onclick="sortTable(6)">
+                    <th onclick="sortTable(8)">
                         PSI
                     </th>
     
-                    <th onclick="sortTable(7)">
+                    <th onclick="sortTable(9)">
                         Status
                     </th>
                 </tr>
