@@ -38,6 +38,9 @@ class EDAReport:
         source_column=None,
         stability_by=None,
         stability_reference=None,
+        min_relevant_lift: float | None = None,
+        lift_min_population_pct: float = 0.05,
+        lift_group: str | None = None,
         n_bins=10,
         include_ignored=False,
     ):
@@ -66,6 +69,14 @@ class EDAReport:
         self.stability_reference = (
             stability_reference
         )
+        
+        self.min_relevant_lift = (
+            min_relevant_lift
+        )
+        self.lift_min_population_pct = (
+            lift_min_population_pct
+        )
+        self.lift_group = lift_group
 
         self.n_bins = n_bins
         self.include_ignored = (
