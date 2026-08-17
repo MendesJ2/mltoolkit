@@ -42,7 +42,7 @@ class FeatureFilter:
         max_categories: int | None = None,
         min_iv: float | None = None,
         iv_n_bins: int = 10,
-        min_relevant_lift: float | None = None,
+        min_lift_deviation: float | None = None,
         lift_min_population_pct: float = 0.05,
         lift_group: str | None = None,
         max_psi: float | None = None,
@@ -66,16 +66,15 @@ class FeatureFilter:
         self.min_iv = min_iv
         self.iv_n_bins = iv_n_bins
 
-        self.min_relevant_lift = (
-            min_relevant_lift
+        self.min_lift_deviation = (
+            min_lift_deviation
         )
         
         self.lift_min_population_pct = (
             lift_min_population_pct
         )
         
-        self.lift_group = lift_group        
-
+        self.lift_group = lift_group
         self.max_psi = max_psi
         self.stability_by = stability_by
         self.stability_reference = stability_reference
@@ -282,8 +281,9 @@ class FeatureFilter:
                         else False
                     ),
                     "iv": np.nan,
-
-                    "max_relevant_lift": np.nan,
+                    
+                    "relevant_lift": np.nan,
+                    "relevant_lift_deviation": np.nan,
                     "relevant_lift_population_pct": np.nan,
                     "relevant_lift_group": None,
                     "relevant_lift_scope": None,
@@ -369,15 +369,20 @@ class FeatureFilter:
         A feature is kept when:
             - IV is above min_iv;
             OR
-            - relevant lift is above min_relevant_lift.
+            - a sufficiently large bin has lift sufficiently
+              far from the neutral value of 1.
     
-        Relevant lift only considers bins with at least
-        lift_min_population_pct of the corresponding population.
+        Lift deviation is defined as:
+    
+            abs(lift - 1)
+    
+        Therefore both positive and negative signals
+        are considered.
         """
     
         if (
             self.min_iv is None
-            and self.min_relevant_lift is None
+            and self.min_lift_deviation is None
         ):
             return report
     
@@ -443,20 +448,20 @@ class FeatureFilter:
                 valid_lift_rows = (
                     strength_metrics[
                         strength_metrics[
-                            "max_relevant_lift"
+                            "relevant_lift_deviation"
                         ].notna()
                     ]
                 )
     
                 if valid_lift_rows.empty:
     
-                    best_lift = np.nan
+                    best_deviation = np.nan
     
                 else:
     
                     best_index = (
                         valid_lift_rows[
-                            "max_relevant_lift"
+                            "relevant_lift_deviation"
                         ]
                         .idxmax()
                     )
@@ -467,16 +472,25 @@ class FeatureFilter:
                         ]
                     )
     
-                    best_lift = (
+                    best_deviation = (
                         best_row[
-                            "max_relevant_lift"
+                            "relevant_lift_deviation"
                         ]
                     )
     
                     report.at[
                         index,
-                        "max_relevant_lift",
-                    ] = best_lift
+                        "relevant_lift",
+                    ] = (
+                        best_row[
+                            "relevant_lift"
+                        ]
+                    )
+    
+                    report.at[
+                        index,
+                        "relevant_lift_deviation",
+                    ] = best_deviation
     
                     report.at[
                         index,
@@ -516,18 +530,20 @@ class FeatureFilter:
                 )
     
                 lift_ok = (
-                    self.min_relevant_lift
+                    self.min_lift_deviation
                     is not None
-                    and pd.notna(best_lift)
-                    and best_lift
-                    >= self.min_relevant_lift
+                    and pd.notna(
+                        best_deviation
+                    )
+                    and best_deviation
+                    >= self.min_lift_deviation
                 )
     
-                # If both criteria are configured,
-                # either one is sufficient.
+                # Both configured:
+                # either criterion is sufficient.
                 if (
                     self.min_iv is not None
-                    and self.min_relevant_lift
+                    and self.min_lift_deviation
                     is not None
                 ):
     
@@ -536,12 +552,10 @@ class FeatureFilter:
                         or lift_ok
                     )
     
-                # IV only
                 elif self.min_iv is not None:
     
                     keep_strength = iv_ok
     
-                # Lift only
                 else:
     
                     keep_strength = lift_ok
@@ -972,12 +986,12 @@ class FeatureFilter:
             )
         
         if (
-            self.min_relevant_lift
+            self.min_lift_deviation
             is not None
-            and self.min_relevant_lift <= 0
+            and self.min_lift_deviation < 0
         ):
             raise ValueError(
-                "min_relevant_lift must be > 0."
+                "min_lift_deviation must be >= 0."
             )
         
         if not (
