@@ -135,8 +135,7 @@ class ModelEvaluation:
             height=500,
             xaxis={
                 "title": "Decile",
-                "dtick": 1,
-                "autorange": "reversed",
+                "dtick": 1,                
             },
             yaxis={
                 "title": "Lift",
@@ -184,7 +183,6 @@ class ModelEvaluation:
             xaxis={
                 "title": "Decile",
                 "dtick": 1,
-                "autorange": "reversed",
             },
             yaxis={
                 "title": "Target rate",
@@ -340,7 +338,7 @@ class ModelEvaluation:
             data["probability"]
             .rank(
                 method="first",
-                ascending=False,
+                ascending=True,
             )
         )
 
@@ -409,29 +407,72 @@ class ModelEvaluation:
             / global_rate
         )
 
-        table[
+        cumulative = (
+            table
+            .sort_values(
+                "decile",
+                ascending=False,
+            )
+            .copy()
+        )
+        
+        cumulative[
             "cumulative_population_pct"
         ] = (
-            table["population_pct"]
+            cumulative[
+                "population_pct"
+            ]
             .cumsum()
         )
-
-        table[
+        
+        cumulative[
             "cumulative_event_pct"
         ] = (
-            table["event_pct"]
+            cumulative[
+                "event_pct"
+            ]
             .cumsum()
         )
-
-        table[
+        
+        cumulative[
             "cumulative_lift"
         ] = (
-            table[
+            cumulative[
                 "cumulative_event_pct"
             ]
-            / table[
+            / cumulative[
                 "cumulative_population_pct"
             ]
+        )
+        
+        table = (
+            table
+            .drop(
+                columns=[
+                    "cumulative_population_pct",
+                    "cumulative_event_pct",
+                    "cumulative_lift",
+                ],
+                errors="ignore",
+            )
+            .merge(
+                cumulative[
+                    [
+                        "decile",
+                        "cumulative_population_pct",
+                        "cumulative_event_pct",
+                        "cumulative_lift",
+                    ]
+                ],
+                on="decile",
+                how="left",
+            )
+            .sort_values(
+                "decile"
+            )
+            .reset_index(
+                drop=True
+            )
         )
 
         table.insert(
