@@ -171,3 +171,157 @@ def _bin_sort_key(
 
     except ValueError:
         return np.inf
+
+
+def fit_quantile_bins(
+    series: pd.Series,
+    n_bins: int = 10,
+    special_values=None,
+):
+    """
+    Learn quantile bin edges from a reference sample.
+
+    Special values and missing values are excluded
+    from the quantile calculation.
+
+    Returns
+    -------
+    list[float] | None
+        Bin edges suitable for pd.cut().
+    """
+
+    special_values = list(
+        special_values or []
+    )
+
+    regular = (
+        series
+        .dropna()
+    )
+
+    if special_values:
+
+        regular = regular[
+            ~regular.isin(
+                special_values
+            )
+        ]
+
+    if regular.empty:
+        return None
+
+    if (
+        regular.nunique(
+            dropna=True
+        )
+        <= n_bins
+    ):
+        return None
+
+    try:
+
+        _, edges = pd.qcut(
+            regular,
+            q=n_bins,
+            duplicates="drop",
+            retbins=True,
+        )
+
+    except ValueError:
+        return None
+
+    edges = np.asarray(
+        edges,
+        dtype=float,
+    )
+
+    # Allow future/OOT values outside
+    # Development min/max.
+    edges[0] = -np.inf
+    edges[-1] = np.inf
+
+    return edges.tolist()
+
+
+def apply_fixed_bins(
+    series: pd.Series,
+    bin_edges,
+    special_values=None,
+):
+    """
+    Apply previously learned continuous bin edges.
+
+    Missing and special values remain isolated.
+    """
+
+    special_values = list(
+        special_values or []
+    )
+
+    result = pd.Series(
+        index=series.index,
+        dtype="object",
+    )
+
+    missing_mask = (
+        series.isna()
+    )
+
+    result.loc[
+        missing_mask
+    ] = MISSING_LABEL
+
+    for special_value in (
+        special_values
+    ):
+
+        special_mask = (
+            series.eq(
+                special_value
+            )
+            & ~missing_mask
+        )
+
+        result.loc[
+            special_mask
+        ] = str(
+            special_value
+        )
+
+    regular_mask = (
+        result.isna()
+        & series.notna()
+    )
+
+    if not regular_mask.any():
+        return result
+
+    if bin_edges is None:
+
+        result.loc[
+            regular_mask
+        ] = (
+            series.loc[
+                regular_mask
+            ]
+            .astype(str)
+        )
+
+        return result
+
+    binned = pd.cut(
+        series.loc[
+            regular_mask
+        ],
+        bins=bin_edges,
+        include_lowest=True,
+        duplicates="drop",
+    )
+
+    result.loc[
+        regular_mask
+    ] = (
+        binned.astype(str)
+    )
+
+    return result
