@@ -3,209 +3,225 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from mltoolkit.eda.binning import (
-    MISSING_LABEL,
-    apply_fixed_bins,
-    fit_quantile_bins,
-)
-
 
 class FeatureRelationshipStability:
     """
-    Compare feature -> target relationships between
-    a Development reference sample and OOT.
+    Compare feature -> target relationships across:
 
-    Continuous bins are learned only on Development
-    and frozen when applied to OOT.
+        - train
+        - validation
+        - oot
+
+    The input matrices are expected to be already
+    transformed by the ModelingPreprocessor.
+
+    Continuous feature bins are learned only on Train
+    and then frozen for Validation and OOT.
     """
 
     def __init__(
         self,
         *,
-        target,
-        variable_types,
         n_bins=10,
-        special_values=None,
     ):
-        self.target = target
-        self.variable_types = dict(
-            variable_types
-        )
         self.n_bins = n_bins
-        self.special_values = (
-            list(
-                special_values
-                or []
-            )
-        )
 
         self.table = None
         self.summary = None
+
         self.bin_definitions = {}
+        self.feature_types = {}
+
+    # =====================================================
+    # Public API
+    # =====================================================
 
     def fit(
         self,
-        development,
-        oot,
         *,
+        X_train,
+        y_train,
+        X_valid,
+        y_valid,
+        X_oot,
+        y_oot,
         features=None,
     ):
         """
-        Analyse relationship stability.
+        Fit relationship stability analysis.
         """
 
-        self._validate_sample(
-            development,
-            "development",
+        (
+            X_train,
+            y_train,
+        ) = self._prepare_sample(
+            X_train,
+            y_train,
+            "train",
         )
 
-        self._validate_sample(
-            oot,
+        (
+            X_valid,
+            y_valid,
+        ) = self._prepare_sample(
+            X_valid,
+            y_valid,
+            "validation",
+        )
+
+        (
+            X_oot,
+            y_oot,
+        ) = self._prepare_sample(
+            X_oot,
+            y_oot,
             "oot",
+        )
+
+        self._validate_columns(
+            X_train,
+            X_valid,
+            X_oot,
         )
 
         if features is None:
 
-            features = [
-                feature
-                for feature
-                in self.variable_types
-                if (
-                    feature
-                    in development.columns
-                    and feature
-                    in oot.columns
-                )
-            ]
+            features = list(
+                X_train.columns
+            )
+
+        else:
+
+            features = list(
+                features
+            )
+
+        missing_features = (
+            set(features)
+            - set(X_train.columns)
+        )
+
+        if missing_features:
+
+            raise ValueError(
+                "Features not found in X_train: "
+                f"{sorted(missing_features)}"
+            )
 
         tables = []
 
         for feature in features:
 
-            variable_type = (
-                self.variable_types[
-                    feature
-                ]
+            feature_type = (
+                self._infer_feature_type(
+                    X_train[feature]
+                )
             )
 
-            dev_group, oot_group = (
-                self._prepare_feature_groups(
-                    development=development,
-                    oot=oot,
+            self.feature_types[
+                feature
+            ] = feature_type
+
+            train_group = (
+                self._fit_feature_bins(
+                    X_train[feature],
                     feature=feature,
-                    variable_type=(
-                        variable_type
+                    feature_type=(
+                        feature_type
                     ),
                 )
             )
 
-            dev_table = (
+            valid_group = (
+                self._apply_feature_bins(
+                    X_valid[feature],
+                    feature=feature,
+                    feature_type=(
+                        feature_type
+                    ),
+                )
+            )
+
+            oot_group = (
+                self._apply_feature_bins(
+                    X_oot[feature],
+                    feature=feature,
+                    feature_type=(
+                        feature_type
+                    ),
+                )
+            )
+
+            train_table = (
                 self._aggregate(
-                    feature_group=dev_group,
-                    target=development[
-                        self.target
-                    ],
-                    sample="development",
+                    feature_group=(
+                        train_group
+                    ),
+                    target=y_train,
+                    sample="train",
+                )
+            )
+
+            valid_table = (
+                self._aggregate(
+                    feature_group=(
+                        valid_group
+                    ),
+                    target=y_valid,
+                    sample="validation",
                 )
             )
 
             oot_table = (
                 self._aggregate(
-                    feature_group=oot_group,
-                    target=oot[
-                        self.target
-                    ],
+                    feature_group=(
+                        oot_group
+                    ),
+                    target=y_oot,
                     sample="oot",
                 )
             )
 
-            merged = (
-                dev_table
+            feature_table = (
+                train_table
+                .merge(
+                    valid_table,
+                    on="feature_group",
+                    how="outer",
+                )
                 .merge(
                     oot_table,
                     on="feature_group",
                     how="outer",
-                    suffixes=(
-                        "_development",
-                        "_oot",
-                    ),
                 )
             )
 
-            merged.insert(
+            feature_table.insert(
                 0,
                 "feature",
                 feature,
             )
 
-            merged.insert(
+            feature_table.insert(
                 1,
-                "variable_type",
-                variable_type,
+                "feature_type",
+                feature_type,
             )
 
-            merged[
-                "population_pct_delta"
-            ] = (
-                merged[
-                    "population_pct_oot"
-                ]
-                - merged[
-                    "population_pct_development"
-                ]
-            )
-
-            merged[
-                "target_rate_delta"
-            ] = (
-                merged[
-                    "target_rate_oot"
-                ]
-                - merged[
-                    "target_rate_development"
-                ]
-            )
-
-            merged[
-                "lift_delta"
-            ] = (
-                merged["lift_oot"]
-                - merged[
-                    "lift_development"
-                ]
-            )
-
-            merged[
-                "abs_lift_delta"
-            ] = (
-                merged[
-                    "lift_delta"
-                ]
-                .abs()
-            )
-
-            merged[
-                "abs_target_rate_delta"
-            ] = (
-                merged[
-                    "target_rate_delta"
-                ]
-                .abs()
+            feature_table = (
+                self._add_deltas(
+                    feature_table
+                )
             )
 
             tables.append(
-                merged
+                feature_table
             )
 
         if not tables:
 
-            self.table = (
-                pd.DataFrame()
-            )
-
-            self.summary = (
-                pd.DataFrame()
-            )
+            self.table = pd.DataFrame()
+            self.summary = pd.DataFrame()
 
             return self
 
@@ -222,92 +238,216 @@ class FeatureRelationshipStability:
 
         return self
 
-    def _prepare_feature_groups(
+    def feature_table(
         self,
-        *,
-        development,
-        oot,
         feature,
-        variable_type,
     ):
+        """
+        Return detailed stability table
+        for one feature.
+        """
 
-        if variable_type == "continuous":
-
-            edges = fit_quantile_bins(
-                development[
-                    feature
-                ],
-                n_bins=self.n_bins,
-                special_values=(
-                    self.special_values
-                ),
+        if self.table is None:
+            raise RuntimeError(
+                "The analysis has not been fitted."
             )
+
+        return (
+            self.table[
+                self.table[
+                    "feature"
+                ] == feature
+            ]
+            .reset_index(
+                drop=True
+            )
+        )
+
+    # =====================================================
+    # Feature binning
+    # =====================================================
+
+    @staticmethod
+    def _infer_feature_type(
+        series,
+    ):
+        unique_values = set(
+            series
+            .dropna()
+            .unique()
+        )
+
+        if unique_values.issubset(
+            {0, 1}
+        ):
+            return "binary"
+
+        return "continuous"
+
+    def _fit_feature_bins(
+        self,
+        series,
+        *,
+        feature,
+        feature_type,
+    ):
+        if feature_type == "binary":
+
+            self.bin_definitions[
+                feature
+            ] = None
+
+            return (
+                series
+                .astype("object")
+                .where(
+                    series.notna(),
+                    "__MISSING__",
+                )
+                .astype(str)
+            )
+
+        clean = (
+            series
+            .dropna()
+        )
+
+        if clean.empty:
+
+            self.bin_definitions[
+                feature
+            ] = None
+
+            return pd.Series(
+                "__MISSING__",
+                index=series.index,
+            )
+
+        try:
+
+            _, edges = pd.qcut(
+                clean,
+                q=self.n_bins,
+                duplicates="drop",
+                retbins=True,
+            )
+
+            edges = np.asarray(
+                edges,
+                dtype=float,
+            )
+
+            edges[0] = -np.inf
+            edges[-1] = np.inf
 
             self.bin_definitions[
                 feature
             ] = edges
 
-            dev_group = (
-                apply_fixed_bins(
-                    development[
-                        feature
-                    ],
-                    bin_edges=edges,
-                    special_values=(
-                        self.special_values
-                    ),
-                )
+            return self._apply_continuous_bins(
+                series,
+                edges,
             )
 
-            oot_group = (
-                apply_fixed_bins(
-                    oot[
-                        feature
-                    ],
-                    bin_edges=edges,
-                    special_values=(
-                        self.special_values
-                    ),
+        except ValueError:
+
+            self.bin_definitions[
+                feature
+            ] = None
+
+            return (
+                series
+                .astype("object")
+                .where(
+                    series.notna(),
+                    "__MISSING__",
                 )
+                .astype(str)
             )
 
-        else:
+    def _apply_feature_bins(
+        self,
+        series,
+        *,
+        feature,
+        feature_type,
+    ):
+        if feature_type == "binary":
 
-            dev_group = (
-                self._categorical_group(
-                    development[
-                        feature
-                    ]
+            return (
+                series
+                .astype("object")
+                .where(
+                    series.notna(),
+                    "__MISSING__",
                 )
+                .astype(str)
             )
 
-            oot_group = (
-                self._categorical_group(
-                    oot[
-                        feature
-                    ]
+        edges = (
+            self.bin_definitions[
+                feature
+            ]
+        )
+
+        if edges is None:
+
+            return (
+                series
+                .astype("object")
+                .where(
+                    series.notna(),
+                    "__MISSING__",
                 )
+                .astype(str)
             )
 
-        return (
-            dev_group,
-            oot_group,
+        return self._apply_continuous_bins(
+            series,
+            edges,
         )
 
     @staticmethod
-    def _categorical_group(
+    def _apply_continuous_bins(
         series,
+        edges,
     ):
+        result = pd.Series(
+            index=series.index,
+            dtype="object",
+        )
 
-        return (
-            series
-            .astype("object")
-            .where(
-                series.notna(),
-                MISSING_LABEL,
+        missing_mask = (
+            series.isna()
+        )
+
+        result.loc[
+            missing_mask
+        ] = "__MISSING__"
+
+        regular_mask = (
+            ~missing_mask
+        )
+
+        result.loc[
+            regular_mask
+        ] = (
+            pd.cut(
+                series.loc[
+                    regular_mask
+                ],
+                bins=edges,
+                include_lowest=True,
+                duplicates="drop",
             )
             .astype(str)
         )
+
+        return result
+
+    # =====================================================
+    # Aggregation
+    # =====================================================
 
     @staticmethod
     def _aggregate(
@@ -316,7 +456,6 @@ class FeatureRelationshipStability:
         target,
         sample,
     ):
-
         data = pd.DataFrame(
             {
                 "feature_group": (
@@ -331,9 +470,7 @@ class FeatureRelationshipStability:
         )
 
         global_rate = (
-            data[
-                "target"
-            ].mean()
+            data["target"].mean()
         )
 
         table = (
@@ -392,49 +529,130 @@ class FeatureRelationshipStability:
             columns=rename
         )
 
+    # =====================================================
+    # Deltas
+    # =====================================================
+
+    @staticmethod
+    def _add_deltas(
+        table,
+    ):
+        table[
+            "lift_delta_validation"
+        ] = (
+            table[
+                "lift_validation"
+            ]
+            - table[
+                "lift_train"
+            ]
+        )
+
+        table[
+            "lift_delta_oot"
+        ] = (
+            table[
+                "lift_oot"
+            ]
+            - table[
+                "lift_train"
+            ]
+        )
+
+        table[
+            "abs_lift_delta_validation"
+        ] = (
+            table[
+                "lift_delta_validation"
+            ]
+            .abs()
+        )
+
+        table[
+            "abs_lift_delta_oot"
+        ] = (
+            table[
+                "lift_delta_oot"
+            ]
+            .abs()
+        )
+
+        table[
+            "target_rate_delta_validation"
+        ] = (
+            table[
+                "target_rate_validation"
+            ]
+            - table[
+                "target_rate_train"
+            ]
+        )
+
+        table[
+            "target_rate_delta_oot"
+        ] = (
+            table[
+                "target_rate_oot"
+            ]
+            - table[
+                "target_rate_train"
+            ]
+        )
+
+        table[
+            "population_delta_validation"
+        ] = (
+            table[
+                "population_pct_validation"
+            ]
+            - table[
+                "population_pct_train"
+            ]
+        )
+
+        table[
+            "population_delta_oot"
+        ] = (
+            table[
+                "population_pct_oot"
+            ]
+            - table[
+                "population_pct_train"
+            ]
+        )
+
+        return table
+
+    # =====================================================
+    # Summary
+    # =====================================================
+
     @staticmethod
     def _build_summary(
         table,
     ):
-
         records = []
 
-        for feature, data in (
-            table.groupby(
-                "feature",
-                sort=False,
-            )
+        for (
+            feature,
+            data,
+        ) in table.groupby(
+            "feature",
+            sort=False,
         ):
 
             valid = data[
                 data[
-                    "abs_lift_delta"
+                    "abs_lift_delta_oot"
                 ].notna()
-            ]
+            ].copy()
 
             if valid.empty:
-
-                records.append(
-                    {
-                        "feature": feature,
-                        "max_abs_lift_delta": (
-                            np.nan
-                        ),
-                        "weighted_abs_lift_delta": (
-                            np.nan
-                        ),
-                        "max_abs_target_rate_delta": (
-                            np.nan
-                        ),
-                        "worst_bin": None,
-                    }
-                )
-
                 continue
 
             worst_index = (
                 valid[
-                    "abs_lift_delta"
+                    "abs_lift_delta_oot"
                 ]
                 .idxmax()
             )
@@ -445,28 +663,39 @@ class FeatureRelationshipStability:
                 ]
             )
 
-            weights = (
+            train_weights = (
                 valid[
-                    "population_pct_development"
+                    "population_pct_train"
                 ]
                 .fillna(0)
             )
 
-            if weights.sum() > 0:
+            if train_weights.sum() > 0:
 
-                weighted_delta = (
+                weighted_oot = (
                     (
                         valid[
-                            "abs_lift_delta"
+                            "abs_lift_delta_oot"
                         ]
-                        * weights
+                        * train_weights
                     ).sum()
-                    / weights.sum()
+                    / train_weights.sum()
+                )
+
+                weighted_validation = (
+                    (
+                        valid[
+                            "abs_lift_delta_validation"
+                        ]
+                        * train_weights
+                    ).sum()
+                    / train_weights.sum()
                 )
 
             else:
 
-                weighted_delta = (
+                weighted_oot = np.nan
+                weighted_validation = (
                     np.nan
                 )
 
@@ -474,47 +703,57 @@ class FeatureRelationshipStability:
                 {
                     "feature": feature,
 
-                    "max_abs_lift_delta": (
+                    "max_abs_lift_delta_validation": (
                         valid[
-                            "abs_lift_delta"
+                            "abs_lift_delta_validation"
                         ].max()
                     ),
 
-                    "weighted_abs_lift_delta": (
-                        weighted_delta
+                    "weighted_abs_lift_delta_validation": (
+                        weighted_validation
                     ),
 
-                    "max_abs_target_rate_delta": (
+                    "max_abs_lift_delta_oot": (
                         valid[
-                            "abs_target_rate_delta"
+                            "abs_lift_delta_oot"
                         ].max()
                     ),
 
-                    "worst_bin": (
+                    "weighted_abs_lift_delta_oot": (
+                        weighted_oot
+                    ),
+
+                    "worst_bin_oot": (
                         worst_row[
                             "feature_group"
                         ]
                     ),
 
-                    "development_lift_worst_bin": (
+                    "lift_train_worst_bin": (
                         worst_row[
-                            "lift_development"
+                            "lift_train"
                         ]
                     ),
 
-                    "oot_lift_worst_bin": (
+                    "lift_validation_worst_bin": (
+                        worst_row[
+                            "lift_validation"
+                        ]
+                    ),
+
+                    "lift_oot_worst_bin": (
                         worst_row[
                             "lift_oot"
                         ]
                     ),
 
-                    "development_population_worst_bin": (
+                    "population_train_worst_bin": (
                         worst_row[
-                            "population_pct_development"
+                            "population_pct_train"
                         ]
                     ),
 
-                    "oot_population_worst_bin": (
+                    "population_oot_worst_bin": (
                         worst_row[
                             "population_pct_oot"
                         ]
@@ -522,12 +761,18 @@ class FeatureRelationshipStability:
                 }
             )
 
+        if not records:
+            return pd.DataFrame()
+
         return (
             pd.DataFrame(
                 records
             )
             .sort_values(
-                "weighted_abs_lift_delta",
+                [
+                    "weighted_abs_lift_delta_oot",
+                    "max_abs_lift_delta_oot",
+                ],
                 ascending=False,
                 na_position="last",
             )
@@ -536,28 +781,112 @@ class FeatureRelationshipStability:
             )
         )
 
-    def _validate_sample(
-        self,
-        df,
+    # =====================================================
+    # Validation
+    # =====================================================
+
+    @staticmethod
+    def _prepare_sample(
+        X,
+        y,
         name,
     ):
+        if not isinstance(
+            X,
+            pd.DataFrame,
+        ):
+            X = pd.DataFrame(X)
 
-        if self.target not in df.columns:
-            raise ValueError(
-                f"Target '{self.target}' "
-                f"not found in {name}."
+        else:
+            X = X.copy()
+
+        if isinstance(
+            y,
+            pd.Series,
+        ):
+            y = y.copy()
+
+        else:
+            y = pd.Series(
+                y,
+                index=X.index,
             )
 
-        y = df[
-            self.target
-        ].dropna()
+        if not y.index.equals(
+            X.index
+        ):
+            y = y.reindex(
+                X.index
+            )
 
-        if not set(
+        if y.isna().any():
+
+            raise ValueError(
+                f"y_{name} contains "
+                "missing values."
+            )
+
+        unique_values = set(
             y.unique()
-        ).issubset(
+        )
+
+        if not unique_values.issubset(
             {0, 1}
         ):
+
             raise ValueError(
-                "Target must contain "
-                "only 0 and 1."
+                f"y_{name} must "
+                "contain only 0 and 1."
             )
+
+        non_numeric = [
+            column
+            for column in X.columns
+            if not pd.api.types
+            .is_numeric_dtype(
+                X[column]
+            )
+        ]
+
+        if non_numeric:
+
+            raise TypeError(
+                f"X_{name} contains "
+                "non-numeric columns: "
+                f"{non_numeric}"
+            )
+
+        return (
+            X,
+            y.astype(int),
+        )
+
+    @staticmethod
+    def _validate_columns(
+        X_train,
+        X_valid,
+        X_oot,
+    ):
+        train_columns = set(
+            X_train.columns
+        )
+
+        for name, X in [
+            (
+                "validation",
+                X_valid,
+            ),
+            (
+                "oot",
+                X_oot,
+            ),
+        ]:
+
+            if set(
+                X.columns
+            ) != train_columns:
+
+                raise ValueError(
+                    f"X_{name} columns "
+                    "do not match X_train."
+                )
