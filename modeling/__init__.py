@@ -10,9 +10,13 @@ from .comparison import (
     ModelComparison,
 )
 
+from .feature_stability import (
+    FeatureRelationshipStability,
+)
 
 __all__ = [
     "LogisticModel",
     "ModelEvaluation",
     "ModelComparison",
+    "FeatureRelationshipStability",
 ]
