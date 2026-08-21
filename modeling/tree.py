@@ -84,12 +84,12 @@ class TreeModel:
             X,
             fitting=True,
         )
-
+    
         y = self._prepare_y(
             y,
             index=X.index,
         )
-
+    
         self.model = (
             GradientBoostingClassifier(
                 n_estimators=(
@@ -112,31 +112,32 @@ class TreeModel:
                 ),
             )
         )
-
+    
         self.model.fit(
             X,
             y,
         )
-
+    
+        # Model is now fitted.
+        self._is_fitted = True
+    
         self.train_probabilities = (
             self.predict_proba(
                 X
             )
         )
-
+    
         self.train_auc = (
             roc_auc_score(
                 y,
                 self.train_probabilities,
             )
         )
-
+    
         self.train_gini = (
             2 * self.train_auc - 1
         )
-
-        self._is_fitted = True
-
+    
         return self
 
     def predict_proba(
