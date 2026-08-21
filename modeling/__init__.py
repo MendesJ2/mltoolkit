@@ -14,9 +14,14 @@ from .feature_stability import (
     FeatureRelationshipStability,
 )
 
+from .temporal_evaluation import (
+    temporal_model_performance,
+)
+
 __all__ = [
     "LogisticModel",
     "ModelEvaluation",
     "ModelComparison",
     "FeatureRelationshipStability",
+    "temporal_model_performance",
 ]
