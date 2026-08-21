@@ -33,6 +33,8 @@ class ModelEvaluation:
 
         self._samples = {}
 
+        self.monotonicity = None
+
     # =====================================================
     # Public API
     # =====================================================
@@ -314,6 +316,12 @@ class ModelEvaluation:
         self.deciles = pd.concat(
             decile_tables,
             ignore_index=True,
+        )
+
+        self.monotonicity = (
+            self._build_monotonicity(
+                self.deciles
+            )
         )
 
     # =====================================================
@@ -606,3 +614,147 @@ class ModelEvaluation:
             f"n_bins={self.n_bins}"
             ")"
         )
+
+    @staticmethod
+    def _build_monotonicity(
+        deciles,
+    ):
+        """
+        Evaluate monotonicity of observed target rate
+        across score deciles.
+    
+        Expected direction:
+            D1 <= D2 <= ... <= D10
+    
+        Returns one row per sample.
+        """
+    
+        records = []
+    
+        for sample, data in (
+            deciles.groupby(
+                "sample",
+                sort=False,
+            )
+        ):
+    
+            data = (
+                data
+                .sort_values("decile")
+                .reset_index(drop=True)
+            )
+    
+            rates = (
+                data["target_rate"]
+                .to_numpy()
+            )
+    
+            differences = (
+                np.diff(rates)
+            )
+    
+            breaks = (
+                differences < 0
+            )
+    
+            n_comparisons = len(
+                differences
+            )
+    
+            n_breaks = int(
+                breaks.sum()
+            )
+    
+            if n_comparisons > 0:
+    
+                monotonicity_ratio = (
+                    1
+                    - n_breaks
+                    / n_comparisons
+                )
+    
+            else:
+    
+                monotonicity_ratio = (
+                    np.nan
+                )
+    
+            if n_breaks > 0:
+    
+                break_positions = (
+                    np.where(breaks)[0]
+                )
+    
+                break_deciles = [
+                    (
+                        f"D{int(data.loc[i, 'decile'])}"
+                        "→"
+                        f"D{int(data.loc[i + 1, 'decile'])}"
+                    )
+                    for i
+                    in break_positions
+                ]
+    
+                break_magnitudes = (
+                    -differences[
+                        break_positions
+                    ]
+                )
+    
+                max_break = float(
+                    break_magnitudes.max()
+                )
+    
+                total_break = float(
+                    break_magnitudes.sum()
+                )
+    
+            else:
+    
+                break_deciles = []
+                max_break = 0.0
+                total_break = 0.0
+    
+            records.append(
+                {
+                    "sample": sample,
+    
+                    "n_breaks": (
+                        n_breaks
+                    ),
+    
+                    "n_comparisons": (
+                        n_comparisons
+                    ),
+    
+                    "monotonicity_ratio": (
+                        monotonicity_ratio
+                    ),
+    
+                    "max_break": (
+                        max_break
+                    ),
+    
+                    "total_break": (
+                        total_break
+                    ),
+    
+                    "break_deciles": (
+                        ", ".join(
+                            break_deciles
+                        )
+                    ),
+                }
+            )
+    
+        return pd.DataFrame(
+            records
+        )
+
+    def monotonicity_summary(
+        self,
+    ):
+        if self.monotonicity is None:
+            return pd.DataFrame()
+    
+        return self.monotonicity.copy()
