@@ -31,6 +31,7 @@ class FeatureRelationshipStability:
 
         self.bin_definitions = {}
         self.feature_types = {}
+        self.univariate_gini = None
 
     # =====================================================
     # Public API
@@ -233,6 +234,18 @@ class FeatureRelationshipStability:
         self.summary = (
             self._build_summary(
                 self.table
+            )
+        )
+
+        self.univariate_gini = (
+            self._build_univariate_gini(
+                X_train=X_train,
+                y_train=y_train,
+                X_valid=X_valid,
+                y_valid=y_valid,
+                X_oot=X_oot,
+                y_oot=y_oot,
+                features=features,
             )
         )
 
@@ -890,3 +903,123 @@ class FeatureRelationshipStability:
                     f"X_{name} columns "
                     "do not match X_train."
                 )
+
+    @staticmethod
+    def _gini(
+        y,
+        score,
+    ):
+        """
+        Calculate Gini from ROC AUC.
+    
+        Sign is preserved so that a reversal of the
+        feature-target relationship can be detected.
+        """
+    
+        from sklearn.metrics import (
+            roc_auc_score,
+        )
+    
+        if y.nunique() < 2:
+            return np.nan
+    
+        if score.nunique() < 2:
+            return 0.0
+    
+        auc = roc_auc_score(
+            y,
+            score,
+        )
+    
+        return 2 * auc - 1
+    
+    
+    def _build_univariate_gini(
+        self,
+        *,
+        X_train,
+        y_train,
+        X_valid,
+        y_valid,
+        X_oot,
+        y_oot,
+        features,
+    ):
+    
+        records = []
+    
+        for feature in features:
+    
+            train_gini = self._gini(
+                y_train,
+                X_train[feature],
+            )
+    
+            validation_gini = self._gini(
+                y_valid,
+                X_valid[feature],
+            )
+    
+            oot_gini = self._gini(
+                y_oot,
+                X_oot[feature],
+            )
+    
+            records.append(
+                {
+                    "feature": feature,
+    
+                    "gini_train": (
+                        train_gini
+                    ),
+    
+                    "gini_validation": (
+                        validation_gini
+                    ),
+    
+                    "gini_oot": (
+                        oot_gini
+                    ),
+    
+                    "gini_delta_validation": (
+                        validation_gini
+                        - train_gini
+                    ),
+    
+                    "gini_delta_oot": (
+                        oot_gini
+                        - train_gini
+                    ),
+    
+                    "abs_gini_train": (
+                        abs(train_gini)
+                    ),
+    
+                    "abs_gini_validation": (
+                        abs(validation_gini)
+                    ),
+    
+                    "abs_gini_oot": (
+                        abs(oot_gini)
+                    ),
+    
+                    "abs_gini_loss_oot": (
+                        abs(train_gini)
+                        - abs(oot_gini)
+                    ),
+                }
+            )
+    
+        return (
+            pd.DataFrame(
+                records
+            )
+            .sort_values(
+                "abs_gini_loss_oot",
+                ascending=False,
+                na_position="last",
+            )
+            .reset_index(
+                drop=True
+            )
+        )
